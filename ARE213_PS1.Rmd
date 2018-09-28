@@ -20,7 +20,8 @@ theme_plot <- theme(
   legend.title = element_blank(),
   legend.spacing.x = unit(0.3, "cm"))
 
-setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/PS1")
+#setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/PS1")
+setwd("C:\\Users\\will-\\Desktop\\are213")
 dat <- read.dta("ps1.dta")
 ```
 
