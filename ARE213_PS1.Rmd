@@ -1,5 +1,7 @@
 ---
 title: "ARE 213 Problem Set 1"
+author: "Nick Depsky, Will Gorman, Peter Worley"
+date: "October 1, 2018"
 output:
   pdf_document: default
   html_notebook: default
@@ -30,8 +32,8 @@ dat <- read.dta("ps1.dta")
 
 # 1a - Fix Missing Values (Last 15 columns)
 ```{r 1a}
-# Missing Data Codes (herpes = 8 (not stated in codebook), tobacco = 9, cigar = 99, cigar6 = 6, alcohol = 9, drink = 99, drink5 = 5, wgain = 99)
-dat %<>% filter(herpes != 8 & tobacco != 9 & cigar != 99 & cigar6 != 6 & alcohol != 9 & drink != 99 & drink5 != 5 & wgain != 99)
+dat %<>% filter(herpes != 8 & tobacco != 9 & cigar != 99 & cigar6 != 6 & 
+                  alcohol != 9 & drink != 99 & drink5 != 5 & wgain != 99)
 ```
 
 # 1b - Missing Data Discussion
@@ -39,9 +41,14 @@ The data being dropped were only from variables related to sexually transmitted 
 
 #1c - Summary Stats
 ```{r 1c}
-sumstat <- as.data.frame(cbind(apply(dat,2,mean),apply(dat,2,sd), apply(dat,2,min), apply(dat,2,max))) %>%
+sumstat <- as.data.frame(cbind(apply(dat,2,mean),
+                               apply(dat,2,sd),
+                               apply(dat,2,min),
+                               apply(dat,2,max))) %>% 
   set_colnames(c("Mean","SD","Min","Max")) %>% round(3)
+```
 
+```{r, echo = F}
 Variables <- c("Record Type","Place of Birth Recode","Attendant at Birth","Population of County of Occurence","State of Residence (FIPS)","Age of Mother","Hispanic Origin of Mother","Race of Mother Recode","Education of Mother Detail","Marital Status of Mother","Adequacy of Care Recode","Number of Live Births, Now Living","Detail Live Birth Order","Detail Total Birth Order","Total Birth Order Recode","Detail Month of Pregnancy Prenatal Care Began","Total Number of Prenatal Visits","Interval Since Last Live Birth","Interval Since Last Live Birth Recode","Age of Father","Hispanic Origin of Father","Education of Father Detail","Month of Birth","Day of Week of Birth","Gestation - Detail in Weeks","Sex","Birth Weight - Detail in Grams","Plurality","One Minute APGAR Score","Five Minute APGAR Score","Clinical Estimate of Gestation","Method of Delivery Recode","Anemia","Cardiac Disease","Acute or Chronic Lung Disease","Diabetes","Genital Herpes","Chronic Hypertension","Pregnancy-Associated Hypertension","Previous Infant 4000+ Grams","Previous Preterm or Small-for-Gestational-Age Infant","Tobacco Use During Pregnancy","Average Number of Cigarettes per Day","Average Number of Cigarettes per Day Recode","Alcohol Use During Pregnancy","Average Number of Drinks per Week","Average Number of Drinks per Week Recode","Weight Gain in Pounds")
 sumstat <- as.data.frame(cbind(Variables,sumstat))
 kable(sumstat)
@@ -53,15 +60,23 @@ omaps <- cbind(c(mean(dat$omaps[dat$tobacco == 1]),mean(dat$omaps[dat$tobacco ==
 fmaps <- cbind(c(mean(dat$fmaps[dat$tobacco == 1]),mean(dat$fmaps[dat$tobacco == 2])))
 bweight <- cbind(c(mean(dat$dbrwt[dat$tobacco == 1]),mean(dat$dbrwt[dat$tobacco == 2])))
 
-psmoking.dat <- as.data.frame(cbind(omaps,fmaps,bweight)) %>% set_colnames(c("One-Minute APGAR Score", "Five-Minute APGAR Score", "Birthweight")) %>% set_rownames(c("Smoking While Pregnant", "No Smoking While Pregnant"))
+psmoking.dat <- as.data.frame(cbind(omaps,fmaps,bweight)) %>% 
+  set_colnames(c("One-Minute APGAR Score", "Five-Minute APGAR Score", "Birthweight")) %>% 
+  set_rownames(c("Smoking While Pregnant", "No Smoking While Pregnant"))
 ```
 
 As we can see, only the difference in birthweight, and not APGAR scores, appears to be significant (p < 0.05) under the treatment of smoking while pregnant. The difference in birthweight distribution between smoking and non-smoking mothers during pregnancy is shown below.
-```{r}
+```{r, echo = F}
 ggdat <- dat %>% mutate(tobaccofact = dat$tobacco)
 ggdat$tobaccofact[ggdat$tobaccofact == 1] <- "Smoker"
 ggdat$tobaccofact[ggdat$tobaccofact == 2] <- "NonSmoker"
-ggplot(ggdat, aes(dbrwt, colour = tobaccofact, fill = tobaccofact)) + geom_density(alpha = 0.1) + theme_plot + xlab("Birthweight (grams)") + geom_vline(xintercept = psmoking.dat$Birthweight[1], linetype = 'dashed', color = "#ba0000") + geom_vline(xintercept = psmoking.dat$Birthweight[2], linetype = 'dashed', color = "#138400") + scale_color_manual(values = c("#138400","#ba0000")) + scale_fill_manual(values = c("#4cd136","#ff7575")) + ggtitle("Distribution of Infant Birthweights by Maternal Smoking Habits")
+ggplot(ggdat, aes(dbrwt, colour = tobaccofact, fill = tobaccofact)) + 
+  geom_density(alpha = 0.1) + theme_plot + xlab("Birthweight (grams)") + 
+  geom_vline(xintercept = psmoking.dat$Birthweight[1], linetype = 'dashed', color = "#ba0000") +
+  geom_vline(xintercept = psmoking.dat$Birthweight[2], linetype = 'dashed', color = "#138400") +
+  scale_color_manual(values = c("#138400","#ba0000")) + 
+  scale_fill_manual(values = c("#4cd136","#ff7575")) + 
+  ggtitle("Distribution of Infant Birthweights by Maternal Smoking Habits")
 ```
 
 #2b
@@ -70,19 +85,29 @@ One could identify the ATE of maternal smoking on birthweight by comparing the u
 If these assumptions were to hold, and we can claim that the difference in average birthweights of infants between mothers who were smokers during pregnancy and those that weren't is in fact the average treatment effect (ATE) of smoking while pregnant, then we would calculte this ATE to be roughly -240.48 grams.  In other words, we would claim that smoking while pregnant will, on average, reduce your child's weight at birth by 240.48 grams.
 
 ```{r}
-psmoke.all <- as.data.frame(cbind(Variables, round(colMeans(dat),3), round(colMeans(dat[-which(dat$tobacco == 1),]),3), round(colMeans(dat[-which(dat$tobacco == 2),]),3))) %>% set_colnames(c("Variable","Avg Birthweight","Avg Birthweight (Non-Smoker while Pregnant)","Avg Birthweight (Smoker while Pregnant)"))
+psmoke.all <- as.data.frame(cbind(Variables, round(colMeans(dat),3), 
+                                  round(colMeans(dat[-which(dat$tobacco == 1),]),3),
+                                  round(colMeans(dat[-which(dat$tobacco == 2),]),3))) %>% 
+set_colnames(c("Variable","Avg Birthweight","Avg Birthweight (Non-Smoker while Pregnant)",
+                 "Avg Birthweight (Smoker while Pregnant)"))
 ```
 
 #2c
 
 #2d - Regression
-We analyzed the list of variables in the dataset, and decided on the following set of control variables to include in our regression, with birthweight as the outcome variable.
-```{r}
-kable(c("stresfip","dmage","ormoth","mrace3","dmeduc","dmar","adequacy","dtotord","monpre","nprevist","disllb","birmon","dgestat","csex","dplural","anemia","cardiac","lung","diabetes","herpes","chyper","phyper","pre4000","preterm","tobacco","cigar", "alcohol","drink","wgain"), caption = "Control Variables Included in Infant Birthweight Regression")
+We analyzed the list of variables in the dataset, and decided on the following set of control variables to include in our regression, with birthweight as the outcome variable. We deemed these variables to be good controls to include in this regression due to the fact that there could be compelling arguments made for each of them as to why they may influence a mother's pregnancy and therein the health and birthweight of her child.
+```{r, echo = F}
+olsvars <- c("stresfip","dmage","ormoth","mrace3","dmeduc","dmar","adequacy","dtotord","monpre","nprevist","disllb","birmon","dgestat","csex","dplural","anemia","cardiac","lung","diabetes","herpes","chyper","phyper","pre4000","preterm","tobacco","cigar", "alcohol","drink","wgain")
+olsvars <- cbind(olsvars, as.character(psmoke.all$Variable[olsvars])) %>% as.data.frame() %>% set_colnames(c("Code", "Variable"))
+
+kable(olsvars, caption = "Control Variables Included in Infant Birthweight Regression")
 ```
 
 ```{r}
-lm.out <- lm(dbrwt ~ stresfip+dmage+ormoth+mrace3+dmeduc+dmar+adequacy+dtotord+monpre+nprevist+disllb+birmon+dgestat+csex+dplural+anemia+cardiac+lung+diabetes+herpes+chyper+phyper+pre4000+preterm+tobacco+cigar+alcohol+drink+wgain, data = dat)
+lm.out <- lm(dbrwt ~ stresfip+dmage+ormoth+mrace3+dmeduc+dmar+adequacy+
+               dtotord+monpre+nprevist+disllb+birmon+dgestat+csex+dplural+
+               anemia+cardiac+lung+diabetes+herpes+chyper+phyper+pre4000+
+               preterm+tobacco+cigar+alcohol+drink+wgain, data = dat)
 summary(lm.out)
 ```
 
