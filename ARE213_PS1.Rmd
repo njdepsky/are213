@@ -67,11 +67,13 @@ ggplot(ggdat, aes(dbrwt, colour = tobaccofact, fill = tobaccofact)) + geom_densi
 #2b
 One could identify the ATE of maternal smoking on birthweight by comparing the unadjusted difference in mean birth weight of infants of smoking and non-smoking mothers only if they were reasonably certain that all observable determinants of infant birth weight were measured for the sample, and any unobservable determinants of birth weight were accounted for via instrumental variables of some kind.  Furthermore, the treatment, in this case smoking while pregnant, would have to be randomely distributed across all of these determinants, such that the likelihood of the treatment status of each individual was independent of the other determinants of birthweight.  In other words, the treatment assignment is "as good as randomly assigned" after you condition on the observable factors, or other potential birthweight determinants.
 
-If these assumptions were to hold, and we can claim that the difference in average birthweights of infants between mothers who were smokers during pregnancy and those that weren't is in fact the average treatment effect (ATE) of smoking while pregnant, then we would calculte this ATE to be roughly -240 grams.  In other words, we would claim that smoking while pregnant will, on average, reduce your child's weight at birth by 240 grams.
+If these assumptions were to hold, and we can claim that the difference in average birthweights of infants between mothers who were smokers during pregnancy and those that weren't is in fact the average treatment effect (ATE) of smoking while pregnant, then we would calculte this ATE to be roughly -240.48 grams.  In other words, we would claim that smoking while pregnant will, on average, reduce your child's weight at birth by 240.48 grams.
 
 ```{r}
 psmoke.all <- as.data.frame(cbind(Variables, round(colMeans(dat),3), round(colMeans(dat[-which(dat$tobacco == 1),]),3), round(colMeans(dat[-which(dat$tobacco == 2),]),3))) %>% set_colnames(c("Variable","Avg Birthweight","Avg Birthweight (Non-Smoker while Pregnant)","Avg Birthweight (Smoker while Pregnant)"))
 ```
+
+#2c
 
 #2d - Regression
 We analyzed the list of variables in the dataset, and decided on the following set of control variables to include in our regression, with birthweight as the outcome variable.
@@ -84,3 +86,4 @@ lm.out <- lm(dbrwt ~ stresfip+dmage+ormoth+mrace3+dmeduc+dmar+adequacy+dtotord+m
 summary(lm.out)
 ```
 
+With these results we can see that with multiple other potential influential variables controlled-for, the ATE of tobacco on birthweight looks to be about -159.1 grams, which is less than the -240.5 grams estimated from just looking at the difference in average birthweight between smokers and non-smokers only. Note that maternal smoking was coded as 2 for no smokers and 1 for smokers, so a positive beta coefficient for 'tobacco' implies higher birthweights for nonsmokers.  Controlling for these additional variables suggests that the original ATE was like biased high by about 81.4 grams.  This is due to the fact that mothers who smoke during pregnancy are also more likely to engage in behaviors or have other predetermined factors which negatively influence birthweight. Therefore, the original ATE estimate suffered from omitted variables bias.
