@@ -10,7 +10,7 @@ output:
 ```{r, include = F}
 rm(list = ls())
 library(pacman)
-p_load("foreign","dplyr","magrittr","knitr","myFuncs","ggplot2")
+p_load("foreign","dplyr","magrittr","knitr","myFuncs","ggplot2", "corrplot", "stargazer")
 theme_plot <- theme(
   legend.position = "right",
   panel.background = element_rect(fill = NA),
@@ -25,26 +25,42 @@ theme_plot <- theme(
 
 Import Data
 ```{r}
-setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/PS1")
+#setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/PS1")
 #setwd("C:\\Users\\will-\\Desktop\\are213")
+setwd("C:\\Users\\Will\\Desktop\\are213")
 dat <- read.dta("ps1.dta")
 ```
 
 # 1a - Fix Missing Values (Last 15 columns)
 ```{r 1a}
-dat %<>% filter(herpes != 8 & tobacco != 9 & cigar != 99 & cigar6 != 6 & 
+dat_drop <- dat %>% filter(herpes != 8 & tobacco != 9 & cigar != 99 & cigar6 != 6 & 
                   alcohol != 9 & drink != 99 & drink5 != 5 & wgain != 99)
 ```
 
 # 1b - Missing Data Discussion
 The data being dropped were only from variables related to sexually transmitted disease (herpes), smoking and alcohol consumption, and weight gain.  Each of these variables are more sensitive and potentially incriminating information for patient participants, and therefore may be underreported or undisclosed much more than other characteristics, such as having hypertension or anemia.  The omission of such data therefore may not be random, but could be correlated with other variables that correlate with the incidence of these conditions and behaviors.  Therefore, we might end up with lots of omitted individuals with high-risk lifestyles, which could produced biased results. One way to see if these data omissions truly are random would be to create dummy variables for each variable that has missing data (i.e. 0 - not missing, 1 - missing) and use this as an outcome variable in a logistic regression, to see if the beta coefficients of all other variables are statistically significant and non-zero. If so, we might conclude that the probability of a missing data value being present for a given high-risk lifestyle variable i not random, but in fact related to other non-missing variables.
 
+
+Furthermore, we would likely want understand the data generating function for our outcome of interest (birth weight and APGAR score). We are mostly interested in variables within the dataset which would have an effect on the outcome. We would also be worried about variation within the missing data to see if the dropped data were significantly different with the remaining observational data of interest.
+
+
+The data do not appear to be totally at random. In the below plot, we check the correlation values for some the variables both before (red) and after (green) dropping the observations. While most values don't change that noticeably, there are a few differences to question whether these observations were truly random.
+
+
+```{r 1b}
+#plot correlation matrix
+res <- data.frame(cor(dat))
+res2 <- data.frame(cor(dat_drop))
+plot(res$dbrwt, pch = 16, col = "red",xlab = "Variables of interest")
+points(res2$dbrwt, pch=16, col = "green")
+```
+
 #1c - Summary Stats
 ```{r 1c}
-sumstat <- as.data.frame(cbind(apply(dat,2,mean),
-                               apply(dat,2,sd),
-                               apply(dat,2,min),
-                               apply(dat,2,max))) %>% 
+sumstat <- as.data.frame(cbind(apply(dat_drop,2,mean),
+                               apply(dat_drop,2,sd),
+                               apply(dat_drop,2,min),
+                               apply(dat_drop,2,max))) %>% 
   set_colnames(c("Mean","SD","Min","Max")) %>% round(3)
 ```
 
@@ -56,49 +72,90 @@ kable(sumstat)
 
 #2a - Mean difference in APGAR scores
 ```{r}
-omaps <- cbind(c(mean(dat$omaps[dat$tobacco == 1]),mean(dat$omaps[dat$tobacco == 2])))
-fmaps <- cbind(c(mean(dat$fmaps[dat$tobacco == 1]),mean(dat$fmaps[dat$tobacco == 2])))
-bweight <- cbind(c(mean(dat$dbrwt[dat$tobacco == 1]),mean(dat$dbrwt[dat$tobacco == 2])))
+keep.temp = c('omaps', 'fmaps', 'dbrwt')
 
-psmoking.dat <- as.data.frame(cbind(omaps,fmaps,bweight)) %>% 
-  set_colnames(c("One-Minute APGAR Score", "Five-Minute APGAR Score", "Birthweight")) %>% 
-  set_rownames(c("Smoking While Pregnant", "No Smoking While Pregnant"))
+group.ttest = function(x, group = as.factor(dat_drop$tobacco == 1) ){
+  return(
+    unlist(
+      t.test( x ~ group)[c("estimate", "p.value")]
+    )
+  )
+}
+
+apgar = t(sapply(dat_drop[ , keep.temp], group.ttest))
+colnames(apgar) <- c("non-smoker","smoker","p-value")
+rownames(apgar) <- c("One-Minute APGAR Score", "Five-Minute APGAR Score", "Birthweight")
+
+stargazer(apgar, title = "Table 2a: different in apgar scores", type = "text")
+
 ```
 
 As we can see, only the difference in birthweight, and not APGAR scores, appears to be significant (p < 0.05) under the treatment of smoking while pregnant. The difference in birthweight distribution between smoking and non-smoking mothers during pregnancy is shown below.
+
 ```{r, echo = F}
-ggdat <- dat %>% mutate(tobaccofact = dat$tobacco)
+ggdat <- dat_drop %>% mutate(tobaccofact = dat_drop$tobacco)
 ggdat$tobaccofact[ggdat$tobaccofact == 1] <- "Smoker"
 ggdat$tobaccofact[ggdat$tobaccofact == 2] <- "NonSmoker"
 ggplot(ggdat, aes(dbrwt, colour = tobaccofact, fill = tobaccofact)) + 
   geom_density(alpha = 0.1) + theme_plot + xlab("Birthweight (grams)") + 
-  geom_vline(xintercept = psmoking.dat$Birthweight[1], linetype = 'dashed', color = "#ba0000") +
-  geom_vline(xintercept = psmoking.dat$Birthweight[2], linetype = 'dashed', color = "#138400") +
+  geom_vline(xintercept = apgar[3,2], linetype = 'dashed', color = "#ba0000") +
+  geom_vline(xintercept = apgar[3,1], linetype = 'dashed', color = "#138400") +
   scale_color_manual(values = c("#138400","#ba0000")) + 
   scale_fill_manual(values = c("#4cd136","#ff7575")) + 
   ggtitle("Distribution of Infant Birthweights by Maternal Smoking Habits")
 ```
 
-#2b
-One could identify the ATE of maternal smoking on birthweight by comparing the unadjusted difference in mean birth weight of infants of smoking and non-smoking mothers only if they were reasonably certain that all observable determinants of infant birth weight were measured for the sample, and any unobservable determinants of birth weight were accounted for via instrumental variables of some kind.  Furthermore, the treatment, in this case smoking while pregnant, would have to be randomely distributed across all of these determinants, such that the likelihood of the treatment status of each individual was independent of the other determinants of birthweight.  In other words, the treatment assignment is "as good as randomly assigned" after you condition on the observable factors, or other potential birthweight determinants.
+#2b - Average Treatment
 
-If these assumptions were to hold, and we can claim that the difference in average birthweights of infants between mothers who were smokers during pregnancy and those that weren't is in fact the average treatment effect (ATE) of smoking while pregnant, then we would calculte this ATE to be roughly -240.48 grams.  In other words, we would claim that smoking while pregnant will, on average, reduce your child's weight at birth by 240.48 grams.
+One could identify the average treatment effect (ATE) of maternal smoking on birthweight by comparing the unadjusted difference in mean birth weight of infants of smoking and non-smoking mothers only if they were reasonably certain that all observable determinants of infant birth weight were measured for the sample, and any unobservable determinants of birth weight were accounted for via instrumental variables of some kind.  Furthermore, the treatment, in this case smoking while pregnant, would have to be randomely distributed across all of these determinants, such that the likelihood of the treatment status of each individual was independent of the other determinants of birthweight.  In other words, the treatment assignment is "as good as randomly assigned" after you condition on the observable factors, or other potential birthweight determinants.
+
+
+If these assumptions were to hold, and we can claim that the difference in average birthweights of infants between mothers who were smokers during pregnancy and those that weren't is in fact the ATE of smoking while pregnant, then we would calculte this ATE to be roughly -240.48 grams.  In other words, we would claim that smoking while pregnant will, on average, reduce your child's weight at birth by 240.48 grams.
 
 ```{r}
-psmoke.all <- as.data.frame(cbind(Variables, round(colMeans(dat),3), 
-                                  round(colMeans(dat[-which(dat$tobacco == 1),]),3),
-                                  round(colMeans(dat[-which(dat$tobacco == 2),]),3))) %>% 
-set_colnames(c("Variable","Avg Birthweight","Avg Birthweight (Non-Smoker while Pregnant)",
-                 "Avg Birthweight (Smoker while Pregnant)"))
+keep.temp = c('omaps', 'fmaps', 'dbrwt', "stresfip","dmage","ormoth","mrace3",
+              "dmeduc","dmar","adequacy","dtotord","monpre","nprevist",
+              "disllb","birmon","dgestat","csex","dplural","anemia","cardiac",
+              "lung","diabetes","herpes","chyper","phyper","pre4000","preterm",
+              "alcohol","drink","wgain")
+
+group.ttest = function(x, group = as.factor(dat_drop$tobacco == 1) ){
+  return(
+    unlist(
+      t.test( x ~ group)[c("estimate", "p.value")]
+    )
+  )
+}
+
+apgar = data.frame(t(sapply(dat_drop[ , keep.temp], group.ttest)))
+colnames(apgar) <- c("non-smoker","smoker","p-value")
+
+test <- data.frame(colMeans(dat_drop[ , keep.temp])) 
+colnames(test) <- c("pop avg")
+
+final <- cbind(test,apgar)
+final$treatment <- final$smoker - final$`non-smoker`
+final <- as.matrix(final)
+
+stargazer(final, title = "Table 2b: summary table of treatment effect on key variables", type = "text")
+
 ```
 
-#2c
+Based on Table 2b above, we might question some of the validity of the assumptions mentioned above.  This table shows that there are other variables that are significantly correlated with the treatment of interest (i.e. smoking). Due to this correlation, we worry that the other variables of interest are not "as good as randomly assigned".
+
+#2c - Predetermination
+
+Variables that could be considered predetermined are those that were determined prior to the treatment effect (i.e. prior to the current period being studied where mothers decision to smoke during the pregnancy).  It is likely that these variables are things like the demographic information of the mother and father and the health information  that do not correlate highly with smoking. 
 
 #2d - Regression
+
+Selection on observables implies that there is no selection into the treatment group due to unobserved characteristics of the observation. Another way of putting it is that we would be worried if there were additional characteristics (data) that we do not have access to (unobserved) that affect the outcome AND these characteristics are not randomly assigned. It is always a possibility that this is an issue. In our particular context, nutirition information is not included. For our below regression to work, we have to assume that nutrition qualities are as good as randomly assigned conditional on the data we do observe.
+
 We analyzed the list of variables in the dataset, and decided on the following set of control variables to include in our regression, with birthweight as the outcome variable. We deemed these variables to be good controls to include in this regression due to the fact that there could be compelling arguments made for each of them as to why they may influence a mother's pregnancy and therein the health and birthweight of her child.
 ```{r, echo = F}
 olsvars <- c("stresfip","dmage","ormoth","mrace3","dmeduc","dmar","adequacy","dtotord","monpre","nprevist","disllb","birmon","dgestat","csex","dplural","anemia","cardiac","lung","diabetes","herpes","chyper","phyper","pre4000","preterm","tobacco","cigar", "alcohol","drink","wgain")
-olsvars <- cbind(olsvars, as.character(psmoke.all$Variable[olsvars])) %>% as.data.frame() %>% set_colnames(c("Code", "Variable"))
+rows.to.keep <- which(rownames(sumstat) %in% olsvars) 
+olsvars <- cbind(olsvars, as.character(sumstat$Variables[rows.to.keep])) %>% as.data.frame() %>% set_colnames(c("Code", "Variable"))
 
 kable(olsvars, caption = "Control Variables Included in Infant Birthweight Regression")
 ```
@@ -107,8 +164,9 @@ kable(olsvars, caption = "Control Variables Included in Infant Birthweight Regre
 lm.out <- lm(dbrwt ~ stresfip+dmage+ormoth+mrace3+dmeduc+dmar+adequacy+
                dtotord+monpre+nprevist+disllb+birmon+dgestat+csex+dplural+
                anemia+cardiac+lung+diabetes+herpes+chyper+phyper+pre4000+
-               preterm+tobacco+cigar+alcohol+drink+wgain, data = dat)
+               preterm+tobacco+cigar+alcohol+drink+wgain, data = dat_drop)
 summary(lm.out)
 ```
 
-With these results we can see that with multiple other potential influential variables controlled-for, the ATE of tobacco on birthweight looks to be about -159.1 grams, which is less than the -240.5 grams estimated from just looking at the difference in average birthweight between smokers and non-smokers only. Note that maternal smoking was coded as 2 for no smokers and 1 for smokers, so a positive beta coefficient for 'tobacco' implies higher birthweights for nonsmokers.  Controlling for these additional variables suggests that the original ATE was like biased high by about 81.4 grams.  This is due to the fact that mothers who smoke during pregnancy are also more likely to engage in behaviors or have other predetermined factors which negatively influence birthweight. Therefore, the original ATE estimate suffered from omitted variables bias.
+With these results we can see that with multiple other potential influential variables controlled-for, the ATE of tobacco on birthweight looks to be about -159.1 grams, which is less than the -240.5 grams estimated from just looking at the difference in average birthweight between smokers and non-smokers only. Note that maternal smoking was coded as 2 for no smokers and 1 for smokers, so a positive beta coefficient for 'tobacco' implies higher birthweights for nonsmokers.  Controlling for these additional variables suggests that the original ATE was like biased high by about 81.4 grams.  This is due to the fact that mothers who smoke during pregnancy are also more likely to engage in behaviors or have other predetermined factors which negatively influence birthweight. Therefore, the original ATE estimate suffered from not controlling for other factors that were not randomly assigned.
+
