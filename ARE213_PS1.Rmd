@@ -26,8 +26,8 @@ theme_plot <- theme(
 Import Data
 ```{r}
 #setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/PS1")
-#setwd("C:\\Users\\will-\\Desktop\\are213")
-setwd("C:\\Users\\Will\\Desktop\\are213")
+setwd("C:\\Users\\will-\\Desktop\\are213")
+#setwd("C:\\Users\\Will\\Desktop\\are213")
 dat <- read.dta("ps1.dta")
 ```
 
@@ -145,7 +145,9 @@ Based on Table 2b above, we might question some of the validity of the assumptio
 
 #2c - Predetermination
 
-Variables that could be considered predetermined are those that were determined prior to the treatment effect (i.e. prior to the current period being studied where mothers decision to smoke during the pregnancy).  It is likely that these variables are things like the demographic information of the mother and father and the health information  that do not correlate highly with smoking. 
+Variables that could be considered predetermined are those that were determined prior to the treatment effect (i.e. prior to the current period being studied where mothers decision to smoke during the pregnancy). In general, a pretermined variable is it does not depend on the value of the treatment value. These variables are called covariates but does not imiply that they are independent of the treatment. Oftentimes, they are time invariant but invariance is not necessary. It is likely that these variables are things like the demographic information of the mother and father and the health information that are not strongly determined by the treatment effect in our sample. 
+
+Outcome variables, on the other hand, are the variables that are possibly not predetermined and in general we should not condition on outcome variables as this may induce bias. In our example, it is difficult to know exactly what might be outcomes, but items such as cardiac disease, acute lung disease, and pregnancy associated hypertension are likely outcome candidates. Unfortunately, acute and chronic lung disease are coded together. While a chronic condition likely isn't caused by smoking while preganat we still decided that this should be treated as an outcome category. We remove these variables from our regression below. 
 
 #2d - Regression
 
@@ -153,7 +155,7 @@ Selection on observables implies that there is no selection into the treatment g
 
 We analyzed the list of variables in the dataset, and decided on the following set of control variables to include in our regression, with birthweight as the outcome variable. We deemed these variables to be good controls to include in this regression due to the fact that there could be compelling arguments made for each of them as to why they may influence a mother's pregnancy and therein the health and birthweight of her child.
 ```{r, echo = F}
-olsvars <- c("stresfip","dmage","ormoth","mrace3","dmeduc","dmar","adequacy","dtotord","monpre","nprevist","disllb","birmon","dgestat","csex","dplural","anemia","cardiac","lung","diabetes","herpes","chyper","phyper","pre4000","preterm","tobacco","cigar", "alcohol","drink","wgain")
+olsvars <- c("stresfip","dmage","ormoth","mrace3","dmeduc","dmar","adequacy","dtotord","monpre","nprevist","disllb","birmon","dgestat","csex","dplural","anemia","diabetes","herpes","chyper","pre4000","preterm","tobacco","cigar", "alcohol","drink","wgain")
 rows.to.keep <- which(rownames(sumstat) %in% olsvars) 
 olsvars <- cbind(olsvars, as.character(sumstat$Variables[rows.to.keep])) %>% as.data.frame() %>% set_colnames(c("Code", "Variable"))
 
@@ -163,10 +165,10 @@ kable(olsvars, caption = "Control Variables Included in Infant Birthweight Regre
 ```{r}
 lm.out <- lm(dbrwt ~ stresfip+dmage+ormoth+mrace3+dmeduc+dmar+adequacy+
                dtotord+monpre+nprevist+disllb+birmon+dgestat+csex+dplural+
-               anemia+cardiac+lung+diabetes+herpes+chyper+phyper+pre4000+
+               anemia+diabetes+herpes+chyper+pre4000+
                preterm+tobacco+cigar+alcohol+drink+wgain, data = dat_drop)
 summary(lm.out)
 ```
 
-With these results we can see that with multiple other potential influential variables controlled-for, the ATE of tobacco on birthweight looks to be about -159.1 grams, which is less than the -240.5 grams estimated from just looking at the difference in average birthweight between smokers and non-smokers only. Note that maternal smoking was coded as 2 for no smokers and 1 for smokers, so a positive beta coefficient for 'tobacco' implies higher birthweights for nonsmokers.  Controlling for these additional variables suggests that the original ATE was like biased high by about 81.4 grams.  This is due to the fact that mothers who smoke during pregnancy are also more likely to engage in behaviors or have other predetermined factors which negatively influence birthweight. Therefore, the original ATE estimate suffered from not controlling for other factors that were not randomly assigned.
+With these results we can see that with multiple other potential influential variables controlled-for, the ATE of tobacco on birthweight looks to be about -158 grams, which is less than the -240.5 grams estimated from just looking at the difference in average birthweight between smokers and non-smokers only. Note that maternal smoking was coded as 2 for no smokers and 1 for smokers, so a positive beta coefficient for 'tobacco' implies higher birthweights for nonsmokers.  Controlling for these additional variables suggests that the original ATE was like biased high by about 80 grams.  This is due to the fact that mothers who smoke during pregnancy are also more likely to engage in behaviors or have other predetermined factors which negatively influence birthweight. Therefore, the original ATE estimate suffered from not controlling for other factors that were not randomly assigned.
 
