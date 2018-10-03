@@ -1,0 +1,116 @@
+---
+title: "ARE 213 Problem Set 1b"
+author: "Nick Depsky, Will Gorman, Peter Worley"
+date: "October 12, 2018"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r, include = F}
+rm(list = ls())
+library(pacman)
+p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer")
+theme_plot <- theme(
+  legend.position = "right",
+  panel.background = element_rect(fill = NA),
+  panel.border = element_rect(fill = NA, color = "grey75"),
+  axis.ticks = element_line(color = "grey85"),
+  panel.grid.major = element_line(color = "grey95", size = 0.2),
+  panel.grid.minor = element_line(color = "grey95", size = 0.2),
+  legend.key = element_blank(),
+  legend.title = element_blank(),
+  legend.spacing.x = unit(0.3, "cm"))
+```
+
+Import Data
+```{r}
+#setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/PS1")
+#setwd("C:\\Users\\will-\\Desktop\\are213")
+setwd("C:\\Users\\Will\\Desktop\\are213\\PS1b")
+dat <- read.dta("ps1.dta")
+#fix missing data
+dat_drop <- dat %>% filter(herpes != 8 & tobacco != 9 & cigar != 99 & cigar6 != 6 & 
+                  alcohol != 9 & drink != 99 & drink5 != 5 & wgain != 99)
+```
+
+# 1a - Misspecification bias
+
+
+# 1b - Higher order specifications
+
+
+```{r 1b}
+
+
+```
+
+#1c - Using LASSO
+```{r 1c}
+
+
+```
+
+
+
+#2 - Propensity score description
+
+#2a - Create propensity score
+
+```{r, echo = F}
+
+
+```
+
+#2b - propensity score estimation
+
+```{r}
+
+
+```
+
+
+
+#2c - propensity score reweighting
+
+
+
+#2d - kernel density estimator
+
+
+```{r}
+
+```
+
+
+#2e - bandwidth adjustments
+
+
+```{r}
+
+```
+
+#2f - benefits and drawbacks of propensity method
+
+
+#2g - Present and discuss results
+
+```{r}
+
+```
+
+#3 - Blocking non-parametric approach
+
+```{r}
+
+```
+
+#4 - low birth weights
+
+```{r}
+
+```
+
+#5 - Summarize results
+
+
