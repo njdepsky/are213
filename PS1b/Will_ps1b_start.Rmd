@@ -10,7 +10,7 @@ output:
 ```{r, include = F}
 rm(list = ls())
 library(pacman)
-p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer")
+p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer", "glmnet")
 theme_plot <- theme(
   legend.position = "right",
   panel.background = element_rect(fill = NA),
@@ -36,36 +36,117 @@ dat_drop <- dat %>% filter(herpes != 8 & tobacco != 9 & cigar != 99 & cigar6 != 
 
 # 1a - Misspecification bias
 
+One source of misspecification bias would be omitted variables bias.  The assumption that random assignment happens conditional on the observables does not protect us against non-random assignment of some unobservable covariate. 
+
+A second source of misspecification bias would be in the functional form assumption of linearity. It could be the case that smoking has some non-linear effect on the birthweight of a baby that we would not capture in the linear model we estimated. We would want to explore nonparametric regression to evaluate the sensitivity to this misspecification.
 
 # 1b - Higher order specifications
 
+We explored using a series estimator of the following functional form:
+
+Regression 1:
+\[(birthweight) = (\beta_1)(stresfip) + (\beta_2)(dmage) + (\beta_3)(ormoth)  + (\beta_4)(mrace3) + (\beta_5)(dmeduc) + (\beta_6)(dmar) + (\beta_7)(adequacy) + (\beta_8)(dfage) + (\beta_9)(orfath) + (\beta_10)(dfeduc) + (\beta_11)(dtotord) + (\beta_12)(monpre) + (\beta_13)(nprevist) + (\beta_14)(disllb) + (\beta_15)(birmon) + (\beta_16)(dgestat) + (\beta_17)(csex) +(\beta_18)(dplural) + (\beta_19)(anemia) + (\beta_20)(diabetes) + (\beta_21)(herpes) + (\beta_22)(phyper) + (\beta_23)(preterm) + (\beta_24)(tobacco) +
+(\beta_25)(alcohol) + (\gamma_1)(dmage)^2 + (\gamma_2)(dfage)^2  + (\gamma_3)(tobacco)^2 + (\gamma_4)(tobacco)^3 + \epsilon\]
+
 
 ```{r 1b}
+dat_drop$dfage2 <- dat_drop$dfage^2
+dat_drop$dmage2 <- dat_drop$dmage^2
+dat_drop$cigar2 <- dat_drop$cigar^2
+dat_drop$cigar3 <- dat_drop$cigar^3
 
+lm.out <- lm(dbrwt ~ stresfip+dmage+ormoth+mrace3+dmeduc+dmar+adequacy+dfage+
+               orfath+dfeduc+dtotord+monpre+nprevist+disllb+birmon+dgestat+csex+dplural+
+               anemia+diabetes+herpes+chyper+
+               preterm+tobacco+cigar+alcohol+dfage2+dmage2+cigar2+cigar3, data = dat_drop)
+summary(lm.out)
 
 ```
+
+
+The benefits of this approach is that it potentially increases the accuracy of the prediction of treatment affect by removing misspecification bias. The drawbacks of this approach are the potential for overspecification, meaning the new specification is based more on the noise inherent in the data, and less on actual relationship of treatment to outcome. 
 
 #1c - Using LASSO
-```{r 1c}
 
+In our application of lasso, we apply the method proposed by belloni, chernozhukov, and hansen. First we apply lasso of the treatment on the covariates.  Then, we apply it on the outcome variable and the covariates and keep the set of covariates that lasso selects in either 1 or 2. 
+
+```{r 1c}
+x_lasso <- dat_drop %>%
+  select(stresfip,dmage,ormoth,mrace3,dmeduc,dmar,adequacy,dfage,
+               orfath,dfeduc,dtotord,monpre,nprevist,disllb,birmon,dgestat,csex,dplural,
+               anemia,diabetes,herpes,chyper,
+               preterm,cigar,alcohol,dfage2,dmage2,cigar2,cigar3) %>% as.matrix()
+
+y_lasso <- dat_drop %>% select(dbrwt) %>% as.matrix()
+
+d_lasso <- dat_drop %>% select(tobacco) %>% as.matrix()
+
+fit <- cv.glmnet(x_lasso,d_lasso)
+coef(fit, s = "lambda.1se")
+
+fit2 <- cv.glmnet(x_lasso,y_lasso)
+coef(fit2, s = "lambda.1se")
 
 ```
 
+Based on the estimates of 0 in both, we drop stresfip, adequacy, dfage, monpre, birmon, anemia, herpes, dfage2, dmage2, cigar2.
 
+```{r 1c lasso}
+lm.out <- lm(dbrwt ~ dmage+ormoth+mrace3+dmeduc+dmar+
+               orfath+dfeduc+dtotord+nprevist+disllb+dgestat+csex+dplural+diabetes+chyper+
+               preterm+tobacco+cigar+alcohol+cigar3, data = dat_drop)
+summary(lm.out)
+
+```
+
+Some of these terms I would have thought would have mattered such as adequacy of care and anemia.
 
 #2 - Propensity score description
+
+The propensity score helps solve the issue that it is hard to condition on X if X is high dimensional.  However, we want to do such conditioning in order to compare between treated and control units. The propensity score helps us proxy for the probability of entering treatment and therefore after conditioning on the propensity score, the units are as good as randomly assigned. 
 
 #2a - Create propensity score
 
 ```{r, echo = F}
+dat_drop$tobacco_p <- ifelse(dat_drop$tobacco == 2, 0, dat_drop$tobacco)
 
+Pcontrols = 'dmage+ ormoth+ mrace3+ dmeduc+ dmar+ dfage+ orfath+ dfeduc + disllb + isllb10 + anemia + diabetes+ herpes+ phyper'
+
+# estimate propensity score
+all_p <- glm( as.formula(paste( 'tobacco_p ~ ', Pcontrols)), 
+                              dat_drop, family = binomial(logit))
+
+summary(all_p)
+
+dat_drop$p.hat_all <- predict(glm( as.formula(paste( 'tobacco_p ~ ', Pcontrols)), 
+                              dat_drop, family = binomial(logit)), 
+                         type = "response") # this is important!
+
+Pcontrols2 = 'dmage+ ormoth+ mrace3+ dmeduc+ dmar+ dfage+ orfath+ dfeduc + disllb + isllb10 + phyper'
+
+dat_drop$p.hat_2 <- predict(glm( as.formula(paste( 'tobacco_p ~ ', Pcontrols2)), 
+                              dat_drop, family = binomial(logit)), 
+                         type = "response") # this is important!
 
 ```
+
+Anemia, diabetes, and herpes were all insignificant in the calculation of the propensity score.
+
+```{r}
+dat_drop$diff <- dat_drop$p.hat_all - dat_drop$p.hat_2
+
+summary(dat_drop$diff)
+
+```
+
+The propensity scores were very comparable with at most a 5% difference and a average difference of 0%
 
 #2b - propensity score estimation
 
 ```{r}
-
+#Controlling for propensity scores
+reg4 <- lm(dbrwt ~ tobacco + p.hat_2, data = dat_drop)
+summary(reg4)
 
 ```
 
