@@ -32,6 +32,8 @@ dat <- read.dta("ps1.dta")
 #fix missing data
 dat_drop <- dat %>% filter(herpes != 8 & tobacco != 9 & cigar != 99 & cigar6 != 6 & 
                   alcohol != 9 & drink != 99 & drink5 != 5 & wgain != 99)
+
+dat_drop$tobacco_p <- ifelse(dat_drop$tobacco == 2, 0, dat_drop$tobacco)
 ```
 
 # 1a - Misspecification bias
@@ -44,21 +46,22 @@ A second source of misspecification bias would be in the functional form assumpt
 
 We explored using a series estimator of the following functional form:
 
-Regression 1:
-\[(birthweight) = (\beta_1)(stresfip) + (\beta_2)(dmage) + (\beta_3)(ormoth)  + (\beta_4)(mrace3) + (\beta_5)(dmeduc) + (\beta_6)(dmar) + (\beta_7)(adequacy) + (\beta_8)(dfage) + (\beta_9)(orfath) + (\beta_10)(dfeduc) + (\beta_11)(dtotord) + (\beta_12)(monpre) + (\beta_13)(nprevist) + (\beta_14)(disllb) + (\beta_15)(birmon) + (\beta_16)(dgestat) + (\beta_17)(csex) +(\beta_18)(dplural) + (\beta_19)(anemia) + (\beta_20)(diabetes) + (\beta_21)(herpes) + (\beta_22)(phyper) + (\beta_23)(preterm) + (\beta_24)(tobacco) +
-(\beta_25)(alcohol) + (\gamma_1)(dmage)^2 + (\gamma_2)(dfage)^2  + (\gamma_3)(tobacco)^2 + (\gamma_4)(tobacco)^3 + \epsilon\]
+<!-- \[(birthweight) = (\beta_1)(stresfip) + (\beta_2)(dmage) + (\beta_3)(ormoth)  + (\beta_4)(mrace3) + \\ -->
+<!-- (\beta_5)(dmeduc) + (\beta_6)(dmar) + (\beta_7)(adequacy) + (\beta_8)(dfage) + (\beta_9)(orfath) +\\ -->
+<!-- (\beta_10)(dfeduc) + (\beta_11)(dtotord) + (\beta_12)(monpre) + (\beta_13)(nprevist) + (\beta_14)(disllb) +\\ (\beta_15)(birmon) + (\beta_16)(dgestat) + (\beta_17)(csex) +(\beta_18)(dplural) + (\beta_19)(anemia) +\\ (\beta_20)(diabetes) + (\beta_21)(herpes) + (\beta_22)(phyper) + (\beta_23)(preterm) + (\beta_24)(tobacco) +\\ (\beta_25)(alcohol) + (\beta_26)(cigar) + (\gamma_1)(dmage)^2 + (\gamma_2)(cigar)^2 + (\gamma_3)(cigar)^3 +\\ -->
+<!-- (\gamma_3)(cigar)(dmage) + \epsilon\] -->
 
 
 ```{r 1b}
-dat_drop$dfage2 <- dat_drop$dfage^2
 dat_drop$dmage2 <- dat_drop$dmage^2
 dat_drop$cigar2 <- dat_drop$cigar^2
 dat_drop$cigar3 <- dat_drop$cigar^3
+dat_drop$cig_dmag <- dat_drop$cigar*dat_drop$dmage
 
 lm.out <- lm(dbrwt ~ stresfip+dmage+ormoth+mrace3+dmeduc+dmar+adequacy+dfage+
                orfath+dfeduc+dtotord+monpre+nprevist+disllb+birmon+dgestat+csex+dplural+
                anemia+diabetes+herpes+chyper+
-               preterm+tobacco+cigar+alcohol+dfage2+dmage2+cigar2+cigar3, data = dat_drop)
+               preterm+tobacco_p+cigar+alcohol+dmage2+cigar2+cigar3+cig_dmag, data = dat_drop)
 summary(lm.out)
 
 ```
@@ -75,7 +78,7 @@ x_lasso <- dat_drop %>%
   select(stresfip,dmage,ormoth,mrace3,dmeduc,dmar,adequacy,dfage,
                orfath,dfeduc,dtotord,monpre,nprevist,disllb,birmon,dgestat,csex,dplural,
                anemia,diabetes,herpes,chyper,
-               preterm,cigar,alcohol,dfage2,dmage2,cigar2,cigar3) %>% as.matrix()
+               preterm,cigar,alcohol,dmage2,cigar2,cigar3,cig_dmag) %>% as.matrix()
 
 y_lasso <- dat_drop %>% select(dbrwt) %>% as.matrix()
 
@@ -94,7 +97,7 @@ Based on the estimates of 0 in both, we drop stresfip, adequacy, dfage, monpre, 
 ```{r 1c lasso}
 lm.out <- lm(dbrwt ~ dmage+ormoth+mrace3+dmeduc+dmar+
                orfath+dfeduc+dtotord+nprevist+disllb+dgestat+csex+dplural+diabetes+chyper+
-               preterm+tobacco+cigar+alcohol+cigar3, data = dat_drop)
+               preterm+tobacco_p+cigar+alcohol+cigar3+cig_dmag, data = dat_drop)
 summary(lm.out)
 
 ```
@@ -107,10 +110,9 @@ The propensity score helps solve the issue that it is hard to condition on X if 
 
 #2a - Create propensity score
 
-```{r, echo = F}
-dat_drop$tobacco_p <- ifelse(dat_drop$tobacco == 2, 0, dat_drop$tobacco)
-
-Pcontrols = 'dmage+ ormoth+ mrace3+ dmeduc+ dmar+ dfage+ orfath+ dfeduc + disllb + isllb10 + anemia + diabetes+ herpes+ phyper'
+```{r }
+Pcontrols = 'dmage+ ormoth+ mrace3+ dmeduc+ dmar+ dfage+ 
+orfath+ dfeduc + disllb + isllb10 + anemia + diabetes+ herpes+ phyper'
 
 # estimate propensity score
 all_p <- glm( as.formula(paste( 'tobacco_p ~ ', Pcontrols)), 
@@ -122,7 +124,8 @@ dat_drop$p.hat_all <- predict(glm( as.formula(paste( 'tobacco_p ~ ', Pcontrols))
                               dat_drop, family = binomial(logit)), 
                          type = "response") # this is important!
 
-Pcontrols2 = 'dmage+ ormoth+ mrace3+ dmeduc+ dmar+ dfage+ orfath+ dfeduc + disllb + isllb10 + phyper'
+Pcontrols2 = 'dmage+ ormoth+ mrace3+ dmeduc+ dmar+ 
+dfage+ orfath+ dfeduc + disllb + isllb10 + phyper'
 
 dat_drop$p.hat_2 <- predict(glm( as.formula(paste( 'tobacco_p ~ ', Pcontrols2)), 
                               dat_drop, family = binomial(logit)), 
@@ -145,53 +148,240 @@ The propensity scores were very comparable with at most a 5% difference and a av
 
 ```{r}
 #Controlling for propensity scores
-reg4 <- lm(dbrwt ~ tobacco + p.hat_2, data = dat_drop)
+reg4 <- lm(dbrwt ~ tobacco_p + p.hat_2, data = dat_drop)
 summary(reg4)
 
 ```
 
-
+Using this approach, we estimate an average treatment effect of -231 grams as a result of smoking while pregnant. This treatment effect is consistent under unconfoundedness (i.e. random assignment of treatment conditional on the covariates) and the assumption of a constant (i.e., homogenous) treatment effect. 
 
 #2c - propensity score reweighting
+
+```{r}
+
+ATE <- (sum(dat_drop$tobacco_p*dat_drop$dbrwt/dat_drop$p.hat_2)/
+           sum(dat_drop$tobacco_p/dat_drop$p.hat_2)) - 
+  (sum((1 - dat_drop$tobacco_p)*dat_drop$dbrwt/(1 - dat_drop$p.hat_2))/  
+              sum((1 - dat_drop$tobacco_p) /(1 - dat_drop$p.hat_2)) )
+
+print(ATE)
+
+
+TOT <- ( sum(dat_drop$tobacco_p*dat_drop$dbrwt)/sum(dat_drop$tobacco_p)) - 
+  sum(dat_drop$p.hat_2 *(1 - dat_drop$tobacco_p)*dat_drop$dbrwt / (1 - dat_drop$p.hat_2) ) / 
+  sum(dat_drop$p.hat_2 * (1 - dat_drop$tobacco_p) /  
+        (1 - dat_drop$p.hat_2))
+
+print(TOT)
+
+```
 
 
 
 #2d - kernel density estimator
 
+Plotting the densities here
 
 ```{r}
+treatment <- density(dat_drop$dbrwt[dat_drop$tobacco_p==1], kernel = "gaussian", 
+                     weights = dat_drop$p.hat_2[dat_drop$tobacco_p==1]/
+                       sum(dat_drop$p.hat_2[dat_drop$tobacco_p==1]))
+
+control <- density(dat_drop$dbrwt[dat_drop$tobacco_p==0], kernel = "gaussian", 
+                   weights = (1 - dat_drop$p.hat_2[dat_drop$tobacco_p==0])/
+                     sum((1 - dat_drop$p.hat_2[dat_drop$tobacco_p==0])))
+
+plot(treatment,
+lty = 'dashed',
+main = "",
+xlab = "Birthweight in grams",
+ylab = "Density")
+lines(control)
+legend(x = 'topleft', legend = c('Everyone Smoker', 'Everyone Non-Smoker'),
+lty = c('dashed', 'solid'), bty = "n")
 
 ```
 
+Calculating point estimate of the density
+
+```{r}
+h = 2
+y = 3000
+treated <- dat_drop[dat_drop$tobacco_p==1,]
+control <- dat_drop[dat_drop$tobacco_p==0,]
+treatment_density <- 0
+control_density <- 0
+
+for(i in 1:nrow(treated))
+{
+
+gauss_den <- (1/sqrt(2*pi))*exp(-0.5*((y-treated$dbrwt[i])/h)^2)*
+  treated$tobacco_p[i]/treated$p.hat_2[i]
+ 
+treatment_density <- gauss_den + treatment_density
+
+}
+
+final_treat_density <- (1/(h*nrow(treated))) * treatment_density
+print(final_treat_density)
+
+for(i in 1:nrow(control))
+{
+
+gauss_den <- (1/sqrt(2*pi))*exp(-0.5*((y-control$dbrwt[i])/h)^2)*
+  (1-control$tobacco_p[i])/(1 - control$p.hat_2[i])
+ 
+control_density <- gauss_den + control_density
+
+}
+
+final_control_density <- (1/(h*nrow(control))) * control_density
+print(final_control_density)
+
+```
 
 #2e - bandwidth adjustments
 
+You can tell that when the bandwidth is larger, the density is smoother but also has a smaller peak than the original.  The smaller bandwidth, though, becomes much more noisy.
 
 ```{r}
+treatment_l <- density(dat_drop$dbrwt[dat_drop$tobacco_p==1], adjust=5, kernel = "gaussian", 
+                       weights =
+      dat_drop$p.hat_2[dat_drop$tobacco_p==1]/
+        sum(dat_drop$p.hat_2[dat_drop$tobacco_p==1]))
 
+control_l <- density(dat_drop$dbrwt[dat_drop$tobacco_p==0], adjust=5, kernel = "gaussian", 
+                     weights = (1 - dat_drop$p.hat_2[dat_drop$tobacco_p==0])/
+                       sum((1 - dat_drop$p.hat_2[dat_drop$tobacco_p==0])))
+
+treatment_s <- density(dat_drop$dbrwt[dat_drop$tobacco_p==1], adjust=0.4, kernel = "gaussian", 
+                       weights = dat_drop$p.hat_2[dat_drop$tobacco_p==1]/
+                         sum(dat_drop$p.hat_2[dat_drop$tobacco_p==1]))
+
+control_s <- density(dat_drop$dbrwt[dat_drop$tobacco_p==0], adjust=0.4, kernel = "gaussian", 
+                     weights = (1 - dat_drop$p.hat_2[dat_drop$tobacco_p==0])/
+                       sum((1 - dat_drop$p.hat_2[dat_drop$tobacco_p==0])))
+
+plot(treatment,
+lty = 'dashed',
+main = "",
+xlab = "Birthweight in grams",
+ylab = "Density")
+lines(control)
+lines(treatment_l, lty = 'dashed',col = 'firebrick')
+lines(control_l, col = 'firebrick')
+lines(treatment_s, lty = 'dashed',col = 'dodgerblue')
+lines(control_s, col = 'dodgerblue')
+legend(x = 'topleft', legend = c('smoker original', 'Non-Smoker original', 
+                                 'smoker large','non-smoker large',
+                                'smoker small','non-smoker small'),
+lty = c('dashed', 'solid','dashed', 'solid','dashed', 'solid'), col = c("gray0","gray0",'firebrick','firebrick','dodgerblue','dodgerblue'), bty = "n")
 ```
 
 #2f - benefits and drawbacks of propensity method
 
+We know that propensity scores are not balanced across treated and control groups. The weighting scheme ensures that each  observation is equally represented (in expectation) in the treated and control groups.  According to to Hirano, Imbens,and Ridder, the weighting estimator we use is efficient. However, very low and very high propensity scores may weight observations to 0 or infinity and bias the results. 
+
 
 #2g - Present and discuss results
 
-```{r}
+i. Must hold. The inverse weighting of propensity scores seems more reasonable if the treatment effect heterogeneity is linear in the propensity scores. If it is non-linear we might need to use a differenet weighting mechanism. 
 
-```
+ii. Need not hold. If it is non-linear we might need to use a differenet weighting mechanism. Our weighhting mechanism in 2c might not be accurate. 
+
+iii. Need not hold.  Without conditioning for propensity scores we saw a systemic difference between smokers and non smokers who selected into treatment. The systematic dfference was accounted for when we calclated the propensity scores.  
+
+iv. Must hold. On taking propensity scores, we account for the exogenous variation and the decision to smoke is as good as randomly assigned. If conditional  on  the  exogenous  variables  the  decision  to  smoke  is still not randomly assigned we will get biased estimnates for ATE and TOT. 
+
 
 #3 - Blocking non-parametric approach
 
 ```{r}
 
+# Create 100 equally sized bins based on propensity scores 
+
+dat_drop$bin <- cut(dat_drop$p.hat_2, quantile(dat_drop$p.hat_2, seq(0,1,0.01)), 
+                    include.lowest = TRUE, labels = FALSE)
+
+# Find difference between birth weights of non-smokers and smokers in each bin, and assign weights to them. The final treatment effect is then calculated by summing the individual weighted mean differences
+
+treatment_effect = 0
+
+treatments <- c()
+for(i in 1:100)
+{
+  
+mean_diff = mean(dat_drop$dbrwt[dat_drop$tobacco_p==1 & dat_drop$bin==i]) -
+  mean(dat_drop$dbrwt[dat_drop$tobacco_p==0 & dat_drop$bin==i]) 
+treatments <- c(treatments, mean_diff)
+#print(i)
+#print(mean_diff)
+
+N <- nrow(dat_drop)
+N1 <- nrow(dat_drop[dat_drop$tobacco_p==1 & dat_drop$bin == i,])
+N0 <- nrow(dat_drop[dat_drop$tobacco_p==0 & dat_drop$bin == i,])
+
+weighted_mean <- mean_diff*((N1+N0)/N)
+#print(weighted_mean)
+
+treatment_effect = weighted_mean + treatment_effect
+}
+
+print(treatment_effect)
+plot(treatments)
+hist(dat_drop$bin)
 ```
+
+The result from this weighted mean difference method shows that on average, babies of smokers have lower birth weights by 234 grams as compared to babies of non-smokers.This is almost equal to the ATE of -232 grams found in the previous question where we did not block as per propensity scores. These equal results show that there are no systematic differences between smokers and non-smokers based on the other covariates included in the study. 
+A quick check of the number of data points within the bins shows that we have balanced blocking as well since the data is uniformly distributed across the bins.
+Furthermore, a plot of all of the mean treatment effects in each bin shows a pretty stable line for each bin.
 
 #4 - low birth weights
 
 ```{r}
+# Create a low birth weight indicator variable
+dat_drop$low <- 0
+dat_drop$low[dat_drop$dbrwt < 2500] <- 1 
 
+# Find difference between proportion of low birth weights between non-smokers and smokers in each bin, and then weight them as per blocking method described in class. The final treatment effect is then calculated by summing the individual weighted mean differences
+
+treatment_effect = 0
+treatments <- c()
+
+for(i in 1:100)
+{
+  
+mean_diff = mean(dat_drop$low[dat_drop$tobacco_p==1 & dat_drop$bin==i]) - 
+  mean(dat_drop$low[dat_drop$tobacco_p==0 & dat_drop$bin==i])
+treatments <- c(treatments, mean_diff)
+#print(i)
+#print(mean_diff)
+
+N <- nrow(dat_drop)
+N1 <- nrow(dat_drop[dat_drop$tobacco_p==1 & dat_drop$bin == i,])
+N0 <- nrow(dat_drop[dat_drop$tobacco_p==0 & dat_drop$bin == i,])
+
+weighted_mean <- mean_diff*((N1+N0)/N)
+#print(weighted_mean)
+
+treatment_effect = weighted_mean + treatment_effect
+
+}
+
+print(treatment_effect)
+
+# Difference in proportion of low birthweight babies between smokers and non-smokers
+low_diff <- (nrow(dat_drop[dat_drop$low ==1 & dat_drop$tobacco_p==1,])/
+               nrow(dat_drop[dat_drop$tobacco_p==1,]) - nrow(dat_drop[dat_drop$low ==1 &                                                              dat_drop$tobacco_p==0,])/nrow(dat_drop[dat_drop$tobacco_p==0,]))
+
+low_diff
 ```
+
+The result shows that smokers have a 4.45 pc higher proportion of low birthweight babies than do non-smokers. This is almost equal to the absolute difference of 4.52 pc in the proportion of low birth weight babies between smokers and non-smokers. Hence, we can say that there are no systematic differences in birth weights between the bins/blocks created, indicating that we have a uniform distribution of data across the bins.
 
 #5 - Summarize results
 
+Drawing on our results from the previous assignment where we found that birth weights of smokers were on average 231.8 gms lower than the birth weights of non-smokers, we now allow the relationship between birth weight and the explanatory variables to assume a non-linear functional form. In order to ensure that the selection into treatment does not differ in some meaningful way from the units that do not select into treatment, we condition the regression on propensity scores. The propensity scores are calculated using all the pre-determined covariates and quadratic terms for age of mother and father, based on observation of the functional form and results of the LASSO regression estimate. The results show that the average treatment effect of smoking increased to 234 gms on controlling for the propensity scores, showing that some of the difference in birth weights between smokers and non-smokers was due to systematic differences in how smokers selected into the treatment. 
+In order to balance the propensity scores across treatment and control groups, we use a weighting method which ensures that smokers and non-smokers are equally represented across both groups. The results for this regression show that the ATE is 232 gms which is the same as our previous result from the conditional regression. However, the treatment on treated effect is found to be 229 gms showing that the difference in birth weights is lower for those who actually selected into treatment and control versus those who had the highest likelihood of being in either group. 
+We also use a blocking method based on propensity scores to confirm that there are no block-wise differences between smokers and non-smokers with similar propensity scores. The results indicate an ATE of 234.3 gms which is almost equal to the ATE found previously, showing that there are no systematic differences between smokers and non-smokers based on the other covariates included in the study. Using the blocking method, we also find that smokers have a 4.45 pc higher proportion of low birthweight babies than do non-smokers.
 
