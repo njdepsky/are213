@@ -86,11 +86,6 @@ dat.mod <- dat_drop %>% select(dbrwt,stresfip,dmage,ormoth,mrace3,dmeduc,dmar,ad
                anemia,diabetes,herpes,chyper,pre4000,
                preterm,tobacco,cigar,alcohol,drink,wgain)
 
-#dat.mod <- dat_drop %>% select(dbrwt,dmage,dmeduc,dmar,adequacy,
-               #dtotord,monpre,nprevist,disllb,birmon,dgestat,csex,dplural,
-               #anemia,diabetes,herpes,chyper,pre4000,
-               #preterm,tobacco,cigar,alcohol,drink,wgain)
-
 lm.mod <- lm(dbrwt ~., data = dat.mod)
 summary(lm.mod)
 ```
@@ -178,6 +173,8 @@ Ovars_save
 
 ```{r Lasso Final Vars}
 c(names(Dvars_save)[!which(names(Dvars_save) %in% names(Ovars_save))],names(Ovars_save))
+
+lm(dbrwt~dmage+tobacco+ormoth+mrace3+dmeduc+dmar+dtotord+nprevist+disllb+dgestat, dat = dat.mod)
 ```
 
 
@@ -311,21 +308,11 @@ k.gauss <- function(u){
 }
 
 # Kernal Density Estimator for Control Group
-k.dens.C <- function(ystar, y, h, N, k.func){
-  ks <- rep(NA,N)
-  for(i in 1:N){
-    u <- (ystar - y[i])/h
-    ks[i] <- k.func(u)
-  }
-  return((1/(N*h))*(sum(ks)))
-}
-
-# Kernal Density Estimator for Treatment Group
 k.dens.C <- function(ystar, k.func){
   ks <- rep(NA,nC)
-  for(i in 1:nC){
+  for(i in 1:n){
     u <- (ystar - y[i])/h
-    ks[i] <- k.func(u)*D[i]/pX[i]
+    ks[i] <- k.func(u)
   }
   return((1/(nC*h))*(sum(ks)))
 }
@@ -333,7 +320,7 @@ k.dens.C <- function(ystar, k.func){
 # Kernal Density Estimator for Treatment Group
 k.dens.T <- function(ystar, k.func){
   ks <- rep(NA,nT)
-  for(i in 1:nT){
+  for(i in 1:n){
     u <- (ystar - y[i])/h
     ks[i] <- k.func(u)*(1-D[i])/(1-pX[i])
   }
