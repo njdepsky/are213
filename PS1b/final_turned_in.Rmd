@@ -68,9 +68,9 @@ ggscat <- function(x = NA,
 
 Import Data
 ```{r}
-setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS1b")
+#setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS1b")
 #setwd("C:\\Users\\will-\\Desktop\\are213\\PS1b")
-#setwd("C:\\Users\\Will\\Desktop\\are213\\PS1b")
+setwd("C:\\Users\\Will\\Desktop\\are213\\PS1b")
 dat <- read.dta("ps1.dta")
 #fix missing data
 dat_drop <- dat %>% filter(herpes != 8 & tobacco != 9 & cigar != 99 & cigar6 != 6 & 
@@ -99,12 +99,6 @@ A second source of misspecification bias would be in the functional form assumpt
 
 We explored using a series estimator of the following functional form:
 
-<!-- \[(birthweight) = (\beta_1)(stresfip) + (\beta_2)(dmage) + (\beta_3)(ormoth)  + (\beta_4)(mrace3) + \\ -->
-<!-- (\beta_5)(dmeduc) + (\beta_6)(dmar) + (\beta_7)(adequacy) + (\beta_8)(dfage) + (\beta_9)(orfath) +\\ -->
-<!-- (\beta_10)(dfeduc) + (\beta_11)(dtotord) + (\beta_12)(monpre) + (\beta_13)(nprevist) + (\beta_14)(disllb) +\\ (\beta_15)(birmon) + (\beta_16)(dgestat) + (\beta_17)(csex) +(\beta_18)(dplural) + (\beta_19)(anemia) +\\ (\beta_20)(diabetes) + (\beta_21)(herpes) + (\beta_22)(phyper) + (\beta_23)(preterm) + (\beta_24)(tobacco) +\\ (\beta_25)(alcohol) + (\beta_26)(cigar) + (\gamma_1)(dmage)^2 + (\gamma_2)(cigar)^2 + (\gamma_3)(cigar)^3 +\\ -->
-<!-- (\gamma_3)(cigar)(dmage) + \epsilon\] -->
-
-
 ```{r 1b}
 dat_drop$dmage2 <- dat_drop$dmage^2
 dat_drop$cigar2 <- dat_drop$cigar^2
@@ -127,11 +121,24 @@ The benefits of this approach is that it potentially increases the accuracy of t
 # Find knots based on equal quantiles of data
 nknots <- 3
 knots <- attr(bs(dat_drop$dbrwt, df = nknots+3), "knots") 
-cspline.mod <- lm(dbrwt ~ bs(stresfip,knots = knots)+bs(dmage,knots = knots)+bs(ormoth,knots = knots)+bs(mrace3,knots = knots)+bs(dmeduc,knots = knots)+bs(dmar,knots = knots)+bs(adequacy,knots = knots)+bs(dtotord,knots = knots)+bs(monpre,knots = knots)+bs(nprevist,knots = knots)+bs(disllb,knots = knots)+bs(birmon,knots = knots)+bs(dgestat,knots = knots)+bs(csex,knots = knots)+bs(dplural,knots = knots)+bs(anemia,knots = knots)+bs(diabetes,knots = knots)+bs(herpes,knots = knots)+bs(chyper,knots = knots)+bs(pre4000,knots = knots)+bs(preterm,knots = knots)+bs(tobacco,knots = knots)+bs(cigar,knots = knots)+bs(alcohol,knots = knots)+bs(drink,knots = knots)+bs(wgain,knots = knots), data = dat_drop)
+cspline.mod <- lm(dbrwt ~ bs(stresfip,knots = knots)+bs(dmage,knots = knots)+
+                    bs(ormoth,knots = knots)+bs(mrace3,knots = knots)+
+                    bs(dmeduc,knots = knots)+bs(dmar,knots = knots)+
+                    bs(adequacy,knots = knots)+bs(dtotord,knots = knots)+
+                    bs(monpre,knots = knots)+bs(nprevist,knots = knots)+
+                    bs(disllb,knots = knots)+bs(birmon,knots = knots)+
+                    bs(dgestat,knots = knots)+bs(csex,knots = knots)+
+                    bs(dplural,knots = knots)+bs(anemia,knots = knots)+
+                    bs(diabetes,knots = knots)+bs(herpes,knots = knots)+
+                    bs(chyper,knots = knots)+bs(pre4000,knots = knots)+
+                    bs(preterm,knots = knots)+bs(tobacco,knots = knots)+
+                    bs(cigar,knots = knots)+bs(alcohol,knots = knots)+
+                    bs(drink,knots = knots)+bs(wgain,knots = knots), 
+                  data = dat_drop)
 ```
 
 Here are graphs showing the predicted vs. observed birthweights using the simple linear model and with cubic splines.
-```{r Compare Modeling Methods, include=F}
+```{r Compare Modeling Methods, echo=F}
 ggscat(x = dat_drop$dbrwt, y = lm.mod$fitted.values, ylab = "Predicted Birthweight (grams)", xlab = "Observed Birthweight (grams)", title = "Predicted vs. Observed Birthweight - Linear Regression", fit = "linear", alpha = 0.3)
 
 ggscat(x = dat_drop$dbrwt, y =cspline.mod$fitted.values, ylab = "Predicted Birthweight (grams)", xlab = "Observed Birthweight (grams)", title =  paste0("Predicted vs. Observed Birthweight - Cubic Spline (",nknots," equal quantile knots)"), fit = "smooth", alpha = 0.3) + geom_vline(xintercept = knots, linetype = "dashed", color = "grey80")
@@ -139,7 +146,7 @@ ggscat(x = dat_drop$dbrwt, y =cspline.mod$fitted.values, ylab = "Predicted Birth
 
 #1c - Using LASSO
 
-In our application of lasso, we apply the method proposed by belloni, chernozhukov, and hansen. First we apply lasso of the treatment on the covariates.  Then, we apply it on the outcome variable and the covariates and keep the set of covariates that lasso selects in either 1 or 2. 
+In our application of lasso, we apply the method proposed by belloni, chernozhukov, and hansen. First we apply lasso on the treatment and the covariates.  Then, we apply it on the outcome variable and the covariates and keep the set of covariates that lasso selects in either 1 or 2. 
 
 ```{r 1c}
 x_lasso <- dat_drop %>%
@@ -213,7 +220,7 @@ summary(dat_drop$diff)
 The propensity scores were very comparable with at most a 5% difference and an average difference of 0%.
 
 Further, we can see that excluding the non-significant covariates in the first propensity score estimation has a little overall effect on the propensity scores of being treated (R2 = 1).
-```{r, include=F}
+```{r}
 ggscat(dat_drop$p.hat_all,dat_drop$p.hat_2, xlab = "Prop. Scores w/ all Predetermined Vars", ylab = "Prop. Scores w/o Insignificant Predetermined Vars", title = "Propensity Score Comparison when Excluding Non-Significant Variables")
 ```
 This implies that we have the right covariates that are predetermined in the problem from the original set of data but does not necessarily protect us against ommitted variables. 
@@ -252,7 +259,7 @@ print(TOT)
 
 #2d kernel density estimator
 
-Plotting the densities here for the full sample
+Plotting the densities here for the full sample. The calculation of the kernel estimator at 3000g is shown under part e). 
 ```{r}
 treatment <- density(dat_drop$dbrwt[dat_drop$tobacco_p==1], kernel = "gaussian", 
                      weights = dat_drop$p.hat_2[dat_drop$tobacco_p==1]/
@@ -312,7 +319,8 @@ Cdens <- density(y[D==0], adjust = bw_adjust)
 Tdens <- density(y[D==1], adjust = bw_adjust)
 
 #Plot densities
-plot(Cdens, col = "blue", main = paste0("Kernal Densities of Birthweight (Bandwidth = ",round(h,2),"g)"), xlab = "grams")
+plot(Cdens, col = "blue", main = paste0("Kernal Densities of Birthweight (Bandwidth = ",
+                                        round(h,2),"g)"), xlab = "grams")
 lines(Tdens, col = "red")
 legend('topright', legend = c("Control", "Treated"), col = c("blue", "red"), lty = 1)
 ```
@@ -373,7 +381,8 @@ est.tri.T <- k.dens.T(3000,k.func = k.tri) %>% round(6)
 est.epan.T <- k.dens.T(3000,k.func = k.epan) %>% round(6)
 est.gauss.T <- k.dens.T(3000,k.func = k.gauss) %>% round(6)
 
-est.df <- data.frame(Kernal = c("Uniform","Triangular","Epanechnikov","Gaussian"), NonSmoker = c(est.uni.C,est.tri.C,est.epan.C,est.gauss.C),Smoker = c(est.uni.T,est.tri.T,est.epan.T,est.gauss.T))
+est.df <- data.frame(Kernal = c("Uniform","Triangular","Epanechnikov","Gaussian"), 
+                     NonSmoker = c(est.uni.C,est.tri.C,est.epan.C,est.gauss.C),Smoker = c(est.uni.T,est.tri.T,est.epan.T,est.gauss.T))
 kable(est.df, caption = "Kernal Estimates for Birthweight of 3000g")
 ```
 
@@ -402,10 +411,12 @@ iv. Must hold. On taking propensity scores, we account for the exogenous variati
 
 # Create 100 equally sized bins based on propensity scores 
 
-dat_drop$bin <- cut(dat_drop$p.hat_2, quantile(dat_drop$p.hat_2, seq(0,1,0.01)), 
+dat_drop$bin <- cut(dat_drop$p.hat_2, breaks = seq(0,1,0.01), 
                     include.lowest = TRUE, labels = FALSE)
 
-# Find difference between birth weights of non-smokers and smokers in each bin, and assign weights to them. The final treatment effect is then calculated by summing the individual weighted mean differences
+# Find difference between birth weights of non-smokers and smokers in each bin, 
+#and assign weights to them. The final treatment effect is then calculated by 
+#summing the individual weighted mean differences
 
 treatment_effect = 0
 
@@ -425,19 +436,25 @@ N0 <- nrow(dat_drop[dat_drop$tobacco_p==0 & dat_drop$bin == i,])
 
 weighted_mean <- mean_diff*((N1+N0)/N)
 #print(weighted_mean)
+if(is.nan(weighted_mean)){
+  final_mean = 0 } else
+    {
+    
+   final_mean = weighted_mean
+  }
 
-treatment_effect = weighted_mean + treatment_effect
+
+treatment_effect = final_mean + treatment_effect
 }
 
 print(treatment_effect)
 plot(treatments)
-hist(dat_drop$bin)
 ```
 
-The result from this weighted mean difference method shows that on average, babies of smokers have lower birth weights by 234 grams as compared to babies of non-smokers.This is almost equal to the ATE of -232 grams found in the previous question where we did not block as per propensity scores. These equal results show that there are no systematic differences between smokers and non-smokers based on the other covariates included in the study. 
+The result from this weighted mean difference method shows that on average, babies of smokers have lower birth weights by 233.3 grams as compared to babies of non-smokers.This is almost equal to the ATE of -232 grams found in the previous question where we did not block as per propensity scores. These equal results show that there are no systematic differences between smokers and non-smokers based on the other covariates included in the study. 
 
-A quick check of the number of data points within the bins shows that we have balanced blocking as well since the data is uniformly distributed across the bins.
-Furthermore, a plot of all of the mean treatment effects in each bin shows a pretty stable line for each bin.
+
+A plot of all of the mean treatment effects in each bin shows a pretty stable line for each bin except at the extremes where there are limited p scores available.
 
 #4 - low birth weights
 
@@ -446,7 +463,9 @@ Furthermore, a plot of all of the mean treatment effects in each bin shows a pre
 dat_drop$low <- 0
 dat_drop$low[dat_drop$dbrwt < 2500] <- 1 
 
-# Find difference between proportion of low birth weights between non-smokers and smokers in each bin, and then weight them as per blocking method described in class. The final treatment effect is then calculated by summing the individual weighted mean differences
+# Find difference between proportion of low birth weights between non-smokers and smokers in each bin, 
+#and then weight them as per blocking method described in class. The final treatment effect is then 
+#calculated by summing the individual weighted mean differences
 
 treatment_effect = 0
 treatments <- c()
