@@ -1,0 +1,8 @@
+To Do:
+
+Nick
+-add spline code (around line 75)
+-insert kernel density estimators (part 2d around line 197)
+
+Will
+-Look into blocking approach
