@@ -485,8 +485,15 @@ N0 <- nrow(dat_drop[dat_drop$tobacco_p==0 & dat_drop$bin == i,])
 
 weighted_mean <- mean_diff*((N1+N0)/N)
 #print(weighted_mean)
+if(is.nan(weighted_mean)){
+  final_mean = 0 } else
+    {
+    
+   final_mean = weighted_mean
+  }
 
-treatment_effect = weighted_mean + treatment_effect
+
+treatment_effect = final_mean + treatment_effect
 
 }
 
@@ -499,7 +506,7 @@ low_diff <- (nrow(dat_drop[dat_drop$low ==1 & dat_drop$tobacco_p==1,])/
 low_diff
 ```
 
-The result shows that smokers have a 4.45 pc higher proportion of low birthweight babies than do non-smokers. This is almost equal to the absolute difference of 4.52 pc in the proportion of low birth weight babies between smokers and non-smokers. Hence, we can say that there are no systematic differences in birth weights between the bins/blocks created, indicating that we have a uniform distribution of data across the bins.
+The result shows that smokers have a 4.448 pc higher proportion of low birthweight babies than do non-smokers. This is almost equal to the absolute difference of 4.515 pc in the proportion of low birth weight babies between smokers and non-smokers. Hence, we can say that there are no systematic differences in birth weights between the bins/blocks created, indicating that we have a uniform distribution of data across the bins.
 
 #5 - Summarize results
 
