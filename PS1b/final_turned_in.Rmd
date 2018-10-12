@@ -10,7 +10,7 @@ output:
 ```{r, include = F}
 rm(list = ls())
 library(pacman)
-p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer", "glmnet")
+p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer", "glmnet","splines")
 theme_plot <- theme(
   legend.position = "right",
   panel.background = element_rect(fill = NA),
@@ -21,12 +21,55 @@ theme_plot <- theme(
   legend.key = element_blank(),
   legend.title = element_blank(),
   legend.spacing.x = unit(0.3, "cm"))
+
+ggscat <- function(x = NA,
+                   y,
+                   fit = 'linear', # options: 'linear', 'smooth', NA
+                   title = '',
+                   ylab = '',
+                   xlab = '',
+                   R2 = TRUE,
+                   equation = FALSE,
+                   alpha = 0.4){
+  require(ggplot2)
+  theme_plot <- theme(
+    legend.position = "bottom",
+    panel.background = element_rect(fill = NA),
+    panel.border = element_rect(fill = NA, color = "grey75"),
+    axis.ticks = element_line(color = "grey85"),
+    panel.grid.major = element_line(color = "grey95", size = 0.2),
+    panel.grid.minor = element_line(color = "grey95", size = 0.2),
+    legend.key = element_blank())
+
+  if(length(x) == 1){
+    if(is.na(x)){
+      x = 1:length(y)
+    }
+  }
+
+  df <- as.data.frame(x = x, y = y)
+
+  if(R2 == TRUE){
+    r2 <- paste("R2 =",round(summary(lm(y~x))$r.squared,3))
+  } else{
+    r2 <- ""
+  }
+
+  if(fit == 'smooth')
+  {
+    ggplot(df, aes(x, y)) + ggtitle(title) + ylab(ylab) + xlab(xlab) + geom_point(alpha = alpha, stroke = 0, size = 2) + ylim(min(y, na.rm = T), 1.05*max(y, na.rm = T)) + theme_plot + geom_smooth() + annotate("text", x = 0.9*max(x,na.rm = T), y = 1.05*max(y,na.rm=T), label = r2, colour="black", size = 4)
+  } else if(fit == 'linear') {
+    ggplot(df, aes(x, y)) + ggtitle(title) + ylab(ylab) + xlab(xlab) + geom_point(alpha = alpha, stroke = 0, size = 2) + ylim(min(y, na.rm = T), 1.05*max(y, na.rm = T)) + theme_plot + geom_smooth(method = 'lm') + annotate("text", x = 0.9*max(x,na.rm = T), y = 1.05*max(y,na.rm=T), label = r2, colour="black", size = 4)
+  } else {
+    ggplot(df, aes(x, y)) + ggtitle(title) + ylab(ylab) + xlab(xlab) + geom_point(alpha = alpha, stroke = 0, size = 2) + ylim(min(y, na.rm = T), 1.05*max(y, na.rm = T)) + theme_plot + annotate("text", x = 0.9*max(x,na.rm = T), y = 1.05*max(y,na.rm=T), label = r2, colour="black", size = 4)
+  }
+}
 ```
 
 Import Data
 ```{r}
-#setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/PS1")
-setwd("C:\\Users\\will-\\Desktop\\are213\\PS1b")
+setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS1b")
+#setwd("C:\\Users\\will-\\Desktop\\are213\\PS1b")
 #setwd("C:\\Users\\Will\\Desktop\\are213\\PS1b")
 dat <- read.dta("ps1.dta")
 #fix missing data
@@ -34,6 +77,14 @@ dat_drop <- dat %>% filter(herpes != 8 & tobacco != 9 & cigar != 99 & cigar6 != 
                   alcohol != 9 & drink != 99 & drink5 != 5 & wgain != 99)
 
 dat_drop$tobacco_p <- ifelse(dat_drop$tobacco == 2, 0, dat_drop$tobacco)
+
+#Linear Model for reference
+dat.mod <- dat_drop %>% select(dbrwt,stresfip,dmage,ormoth,mrace3,dmeduc,dmar,adequacy,
+               dtotord,monpre,nprevist,disllb,birmon,dgestat,csex,dplural,
+               anemia,diabetes,herpes,chyper,pre4000,
+               preterm,tobacco,cigar,alcohol,drink,wgain)
+
+lm.mod <- lm(dbrwt ~., data = dat.mod)
 ```
 
 # 1a - Misspecification bias
@@ -73,10 +124,18 @@ The benefits of this approach is that it potentially increases the accuracy of t
 
 ```{r }
 ## add nick's spline code
-
+# Find knots based on equal quantiles of data
+nknots <- 3
+knots <- attr(bs(dat_drop$dbrwt, df = nknots+3), "knots") 
+cspline.mod <- lm(dbrwt ~ bs(stresfip,knots = knots)+bs(dmage,knots = knots)+bs(ormoth,knots = knots)+bs(mrace3,knots = knots)+bs(dmeduc,knots = knots)+bs(dmar,knots = knots)+bs(adequacy,knots = knots)+bs(dtotord,knots = knots)+bs(monpre,knots = knots)+bs(nprevist,knots = knots)+bs(disllb,knots = knots)+bs(birmon,knots = knots)+bs(dgestat,knots = knots)+bs(csex,knots = knots)+bs(dplural,knots = knots)+bs(anemia,knots = knots)+bs(diabetes,knots = knots)+bs(herpes,knots = knots)+bs(chyper,knots = knots)+bs(pre4000,knots = knots)+bs(preterm,knots = knots)+bs(tobacco,knots = knots)+bs(cigar,knots = knots)+bs(alcohol,knots = knots)+bs(drink,knots = knots)+bs(wgain,knots = knots), data = dat_drop)
 ```
 
-Here is an exammple of using splines in our estimate instead of the linear estimator.
+Here are graphs showing the predicted vs. observed birthweights using the simple linear model and with cubic splines.
+```{r Compare Modeling Methods, include=F}
+ggscat(x = dat_drop$dbrwt, y = lm.mod$fitted.values, ylab = "Predicted Birthweight (grams)", xlab = "Observed Birthweight (grams)", title = "Predicted vs. Observed Birthweight - Linear Regression", fit = "linear", alpha = 0.3)
+
+ggscat(x = dat_drop$dbrwt, y =cspline.mod$fitted.values, ylab = "Predicted Birthweight (grams)", xlab = "Observed Birthweight (grams)", title =  paste0("Predicted vs. Observed Birthweight - Cubic Spline (",nknots," equal quantile knots)"), fit = "smooth", alpha = 0.3) + geom_vline(xintercept = knots, linetype = "dashed", color = "grey80")
+```
 
 #1c - Using LASSO
 
@@ -119,7 +178,7 @@ The propensity score helps solve the issue that it is hard to condition on the c
 
 #2a - Create propensity score
 
-```{r }
+```{r}
 Pcontrols = 'dmage+ ormoth+ mrace3+ dmeduc+ dmar+ dfage+ 
 orfath+ dfeduc + disllb + isllb10 + anemia + diabetes+ herpes+ phyper'
 
@@ -153,6 +212,10 @@ summary(dat_drop$diff)
 
 The propensity scores were very comparable with at most a 5% difference and an average difference of 0%.
 
+Further, we can see that excluding the non-significant covariates in the first propensity score estimation has a little overall effect on the propensity scores of being treated (R2 = 1).
+```{r, include=F}
+ggscat(dat_drop$p.hat_all,dat_drop$p.hat_2, xlab = "Prop. Scores w/ all Predetermined Vars", ylab = "Prop. Scores w/o Insignificant Predetermined Vars", title = "Propensity Score Comparison when Excluding Non-Significant Variables")
+```
 This implies that we have the right covariates that are predetermined in the problem from the original set of data but does not necessarily protect us against ommitted variables. 
 
 #2b - propensity score estimation
@@ -161,7 +224,6 @@ This implies that we have the right covariates that are predetermined in the pro
 #Controlling for propensity scores
 reg4 <- lm(dbrwt ~ tobacco_p + p.hat_2, data = dat_drop)
 summary(reg4)
-
 ```
 
 Using this approach, we estimate an average treatment effect of -231 grams as a result of smoking while pregnant. This treatment effect is consistent under unconfoundedness (i.e. random assignment of treatment conditional on the covariates) and the assumption of a constant (i.e., homogenous) treatment effect. Furthermore, it assumes that there is sufficient overlap of treatment and controls in the covariate space. 
@@ -184,15 +246,13 @@ TOT <- ( sum(dat_drop$tobacco_p*dat_drop$dbrwt)/sum(dat_drop$tobacco_p)) -
         (1 - dat_drop$p.hat_2))
 
 print(TOT)
-
 ```
 
 
 
-#2d - kernel density estimator
+#2d kernel density estimator
 
-Plotting the densities here
-
+Plotting the densities here for the full sample
 ```{r}
 treatment <- density(dat_drop$dbrwt[dat_drop$tobacco_p==1], kernel = "gaussian", 
                      weights = dat_drop$p.hat_2[dat_drop$tobacco_p==1]/
@@ -213,88 +273,117 @@ lty = c('dashed', 'solid'), bty = "n")
 
 ```
 
-Calculating point estimate of the density
+#2e - kernel density bandwidth adjustments
+```{r, fig.height=10}
+n <- nrow(dat_drop)
+y <- dat_drop$dbrwt
+D <- dat_drop$tobacco_p
+#Number of Control Obs
+nC <- length(D[D==0])
+nT <- length(D[D==1])
+par(mfrow = c(3,2))
+for(adj in c(0.1,0.25,0.5,1,2,10)){
+# Define Bandwidth
+h0 <- density(y)$bw
+bw_adjust <- adj
+h <- h0*bw_adjust
 
-```{r}
-h = 2
-y = 3000
-treated <- dat_drop[dat_drop$tobacco_p==1,]
-control <- dat_drop[dat_drop$tobacco_p==0,]
-treatment_density <- 0
-control_density <- 0
+# Control & Treatment Densities
+Cdens <- density(y[D==0], adjust = bw_adjust)
+Tdens <- density(y[D==1], adjust = bw_adjust)
 
-for(i in 1:nrow(treated))
-{
-
-gauss_den <- (1/sqrt(2*pi))*exp(-0.5*((y-treated$dbrwt[i])/h)^2)*
-  treated$tobacco_p[i]/treated$p.hat_2[i]
- 
-treatment_density <- gauss_den + treatment_density
-
+#Plot densities
+plot(Cdens, col = "blue", main = paste0("Bandwidth = ",round(h,2),"g"), xlab = "grams")
+lines(Tdens, col = "red")
+legend('topright', legend = c("Control", "Treated"), col = c("blue", "red"), lty = 1)
 }
-
-final_treat_density <- (1/(h*nrow(treated))) * treatment_density
-print(final_treat_density)
-
-for(i in 1:nrow(control))
-{
-
-gauss_den <- (1/sqrt(2*pi))*exp(-0.5*((y-control$dbrwt[i])/h)^2)*
-  (1-control$tobacco_p[i])/(1 - control$p.hat_2[i])
- 
-control_density <- gauss_den + control_density
-
-}
-
-final_control_density <- (1/(h*nrow(control))) * control_density
-print(final_control_density)
-
 ```
 
-#2e - bandwidth adjustments
+In the above figure, we could see that with smaller bandwidths, the kernal densities get much more jagged, or variable. However, as we increase the bandwidth and the curves become smoother, it's also evident that there is more bias in the estimates because the magnitudes of the curves begin to change relative to one another (i.e. the peak of the control curve starts to decline as the bandwidth is increased).
 
-You can tell that when the bandwidth is larger, the density is smoother but also has a smaller peak than the original (an indication of bias).  The smaller bandwidth, though, becomes much more noisy.
-
+The default bandwidth of ~44 grams seems to produce a fairly smooth kernal density, and was selected as the preferred bandwidth.
 ```{r}
-treatment_l <- density(dat_drop$dbrwt[dat_drop$tobacco_p==1], adjust=5, kernel = "gaussian", 
-                       weights =
-      dat_drop$p.hat_2[dat_drop$tobacco_p==1]/
-        sum(dat_drop$p.hat_2[dat_drop$tobacco_p==1]))
+h0 <- density(y)$bw
+bw_adjust <- 1
+h <- h0*bw_adjust
 
-control_l <- density(dat_drop$dbrwt[dat_drop$tobacco_p==0], adjust=5, kernel = "gaussian", 
-                     weights = (1 - dat_drop$p.hat_2[dat_drop$tobacco_p==0])/
-                       sum((1 - dat_drop$p.hat_2[dat_drop$tobacco_p==0])))
+# Control & Treatment Densities
+Cdens <- density(y[D==0], adjust = bw_adjust)
+Tdens <- density(y[D==1], adjust = bw_adjust)
 
-treatment_s <- density(dat_drop$dbrwt[dat_drop$tobacco_p==1], adjust=0.4, kernel = "gaussian", 
-                       weights = dat_drop$p.hat_2[dat_drop$tobacco_p==1]/
-                         sum(dat_drop$p.hat_2[dat_drop$tobacco_p==1]))
-
-control_s <- density(dat_drop$dbrwt[dat_drop$tobacco_p==0], adjust=0.4, kernel = "gaussian", 
-                     weights = (1 - dat_drop$p.hat_2[dat_drop$tobacco_p==0])/
-                       sum((1 - dat_drop$p.hat_2[dat_drop$tobacco_p==0])))
-
-plot(treatment,
-lty = 'dashed',
-main = "",
-xlab = "Birthweight in grams",
-ylab = "Density")
-lines(control)
-lines(treatment_l, lty = 'dashed',col = 'firebrick')
-lines(control_l, col = 'firebrick')
-lines(treatment_s, lty = 'dashed',col = 'dodgerblue')
-lines(control_s, col = 'dodgerblue')
-legend(x = 'topleft', legend = c('smoker original', 'Non-Smoker original', 
-                                 'smoker large','non-smoker large',
-                                'smoker small','non-smoker small'),
-lty = c('dashed', 'solid','dashed', 'solid','dashed', 'solid'), col = c("gray0","gray0",'firebrick','firebrick','dodgerblue','dodgerblue'), bty = "n")
+#Plot densities
+plot(Cdens, col = "blue", main = paste0("Kernal Densities of Birthweight (Bandwidth = ",round(h,2),"g)"), xlab = "grams")
+lines(Tdens, col = "red")
+legend('topright', legend = c("Control", "Treated"), col = c("blue", "red"), lty = 1)
 ```
+
+Solving for kernel estimator at birthweight = 3000 grams.
+```{r}
+# Uniform kernal function
+k.uni <- function(u){
+  return(ifelse(abs(u) <= 1,0.5,0))
+}
+
+# Triangular kernal function
+k.tri <- function(u){
+  return(ifelse(abs(u) < 1,1-abs(u),0))
+}
+
+# Epanechnikov kernal function
+k.epan <- function(u){
+  return(ifelse(abs(u) < 1,0.75*(1-u^2),0))
+}
+
+# Gaussian kernal function
+k.gauss <- function(u){
+  return((1/sqrt(2*pi))*exp(-0.5*u^2))
+}
+
+# Kernal Density Estimator for Control Group
+k.dens.C <- function(ystar, k.func){
+  ks <- rep(NA,nC)
+  for(i in 1:n){
+    u <- (ystar - y[i])/h
+    ks[i] <- k.func(u)*(1-D[i])/(1-dat_drop$p.hat_2[i])
+  }
+  return((1/(nC*h))*(sum(ks)))
+}
+
+# Kernal Density Estimator for Treatment Group
+k.dens.T <- function(ystar, k.func){
+  ks <- rep(NA,nT)
+  for(i in 1:n){
+    u <- (ystar - y[i])/h
+    ks[i] <- k.func(u)*(D[i]/dat_drop$p.hat_2[i])
+  }
+  return((1/(nT*h))*(sum(ks)))
+}
+```
+Kernal Estimates at 3000g
+```{r}
+h <- density(y)$bw
+
+est.uni.C <- k.dens.C(3000,k.func = k.uni) %>% round(6)
+est.tri.C <- k.dens.C(3000,k.func = k.tri) %>% round(6)
+est.epan.C <- k.dens.C(3000,k.func = k.epan) %>% round(6)
+est.gauss.C <- k.dens.C(3000,k.func = k.gauss) %>% round(6)
+
+est.uni.T <- k.dens.T(3000,k.func = k.uni) %>% round(6)
+est.tri.T <- k.dens.T(3000,k.func = k.tri) %>% round(6)
+est.epan.T <- k.dens.T(3000,k.func = k.epan) %>% round(6)
+est.gauss.T <- k.dens.T(3000,k.func = k.gauss) %>% round(6)
+
+est.df <- data.frame(Kernal = c("Uniform","Triangular","Epanechnikov","Gaussian"), NonSmoker = c(est.uni.C,est.tri.C,est.epan.C,est.gauss.C),Smoker = c(est.uni.T,est.tri.T,est.epan.T,est.gauss.T))
+kable(est.df, caption = "Kernal Estimates for Birthweight of 3000g")
+```
+
+We can see that as expected, the point kernal estimates for the smoker (treated) at 3000g are higher relative to non-smokers (control), which is inline with what the kernal density functions demonstrate above.  Therefore, this can be interpreted, that on average, being a smoker means your overall likelihood of having a child of exactly 3000g is higher than being a non-smoker. 3000g, while not considered especially low, is below average for both the control and treated birthweight distributions seen above.
 
 #2f - benefits and drawbacks of propensity method
 
 The benefits of the propensity weighting approach in part c is that it allows for conditioning solely on the likelihood of selecting into treatment, rather than on all predetermined control variables, which rectifies issues that arise when matching across many variables (Curse of Dimensionality).
 
 Furthermore, we know that propensity scores are not balanced across treated and control groups. The weighting scheme ensures that each observation is equally represented (in expectation) in the treated and control groups.  According to to Hirano, Imbens,and Ridder, the weighting estimator we use is efficient. However, very low and very high propensity scores may weight observations to 0 or infinity and bias the results. 
-
 
 #2g - Present and discuss results
 

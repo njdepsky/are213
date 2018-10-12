@@ -248,6 +248,9 @@ TOT
 #2d&e - kernel density estimator
 For treatment
 ```{r, fig.height=10}
+n <- nrow(dat_drop)
+y <- dat_drop$dbrwt
+D <- dat_drop$tobacco
 #Number of Control Obs
 nC <- length(D[D==0])
 nT <- length(D[D==1])
