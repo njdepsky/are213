@@ -57,7 +57,7 @@ Similarly for the X'Y term: \[\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[y_{it}-\ove
 
 \[[{x}_{i2} - {x}_{i1}]'[{y}_{i2} - {y}_{i1}] = [\Delta x_{i}'\Delta y_{i}] \]
 
-And the fixed effect estimator is: \[{\beta}_{FE} = \Bigg[\sum_{t=1}^{N}[\dfrac{\Delta x_{i}'\Delta x_{i}}{2}]\Bigg]^{-1}\sum_{t=1}^{N}[\dfrac{\Delta x_{i}'\Delta y_{i}}{2}]\]
+And the fixed effect estimator is: \[{\beta}_{FE} = \Bigg[\sum_{t=1}^{N}[\Delta x_{i}'\Delta x_{i}]\Bigg]^{-1}\sum_{t=1}^{N}[\Delta x_{i}'\Delta y_{i}]\]
 
 Now, let's look at the difference estimator. These are calculated by using the difference across time periods to eliminate the unobservables:
 
