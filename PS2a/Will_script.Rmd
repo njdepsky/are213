@@ -8,9 +8,9 @@ output:
 ---
 
 ```{r, include = F}
-rm(list = ls())
+#rm(list = ls())
 library(pacman)
-p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer", "glmnet","splines")
+p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer", "glmnet","splines", "sandwich", "lmtest", "plm", "lfe")
 theme_plot <- theme(
   legend.position = "right",
   panel.background = element_rect(fill = NA),
@@ -31,9 +31,45 @@ theme_plot <- theme(
 
 # 2a - Show fixed effect estimator with transformations
 
+First, we will show the result of the fixed effects estimator:
+
+We define $\overline{y}_i = T^{-1} \sum_{t=1}^T y_{it}$, $\overline{y}_t = N^{-1} \sum_{i=1}^N y_{it}$, and $\overline{\overline{y}} = (NT)^{-1} \sum_{i=1}^N\sum_{t=1}^T y_{it}$.
+
+Then we use equivalent definitions for $\mathbf{\overline{x}_i}$, $\mathbf{\overline{x}_t}$, $\mathbf{\overline{\overline{x}}}$ as well as $\overline{\epsilon}_i$, $\overline{\epsilon}_t$, $\overline{\overline{\epsilon}}$. 
+
+Using the above definitions, we know the fixed effects two-way within model yields:
+
+\[y_{it} - \overline{y}_i - \overline{y}_t + \overline{\overline{y}} = (\mathbf{x_{it}} - \mathbf{\overline{x}_i} - \mathbf{\overline{x}_t} + \mathbf{\overline{\overline{x}}})\beta + (\epsilon_{it} - \overline{\epsilon}_i - \overline{\epsilon}_t + \overline{\overline{\epsilon}})\]
+
+
+Now, we want to show that this same two-way model can be obtained through two within one-way transformations. If we assume the first transformation uses the time-averaged model, then:
+
+\[y_{it} - \overline{y}_i = (\mathbf{x_{it}} - \mathbf{\overline{x}_i})\beta + (\lambda_{t} - \overline{\lambda}_t) + (\epsilon_{it} - \overline{\epsilon}_i)\]
+
+and the fixed effect $\mu_i$ is eliminated. We'll define $y_{it} - \overline{y}_i = z_i$ then run a transformation using an individual-averaged model defined by:
+
+\[z_t = \overline{y}_t - \overline{\overline{y}}\]
+
+such that:
+
+\[z_t = \overline{y}_t - \overline{\overline{y}} = (\mathbf{\overline{x_{t}}} - \mathbf{\overline{\overline{x}}})\beta + (\lambda_{t} - \overline{\lambda}_t) + (\overline{\epsilon_{t}} - \overline{\overline{\epsilon}})\]
+
+and, again, the fixed effect $\mu_i$ is eliminated. Subtracting $z_t$ from $z_i$ yields:
+
+\[y_{it} - \overline{y}_i - \overline{y}_t + \overline{\overline{y}} = (\mathbf{x_{it}} - \mathbf{\overline{x}_i} - \mathbf{\overline{x}_t} + \mathbf{\overline{\overline{x}}})\beta + (\epsilon_{it} - \overline{\epsilon}_i - \overline{\epsilon}_t + \overline{\overline{\epsilon}})\]
+
+which is the same outcome as the two-way within model approach listed above.
+
+
 # 2b - Show order of operation is important and explain why
 
+If we were to instead run the first order transformation on the individual fxed effects averaged model, and use time-averaged values in place of individual fixed effects averages in the second transformation, rather than obtaining $\lambda_{t} - \overline{\lambda}_t$ in both one-way transformations, we would obtain $\mu_{i} - \overline{\mu}_i$ in each transformation, but they would still fall out in the last step and yield the same outcome. Intuitively, it makes sense that we should see the same outcome, whether we control for time or individual effects first or second.
+
 # 2b - Change with imbalance?
+
+Generally speaking, fixed effects models can handle missing observations suggested by an unbalanced panel. However, if the panel becomes unbalanced for a reason correlated to the variables of interest, then there may be some sample selection bias that arises. 
+
+Also, it may be possible that the $\overline{\mu}_i$ terms or the $\overline{\lambda}_t$ terms will not be equivalent form the first transformation to the second in an unbalanced panel, which would yield a remainder term that makes the two within estimator approach unequal to the two-way error component model.
 
 # 3 - Regression analysis
 
@@ -41,9 +77,9 @@ Import Data
 ```{r}
 #setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS1b")
 #setwd("C:\\Users\\will-\\Desktop\\are213\\PS1b")
-setwd("C:\\Users\\Will\\Desktop\\are213\\PS1b")
+setwd("C:\\Users\\Will\\Desktop\\are213\\PS2a")
 
-dat <- read.dta("ps1.dta")
+dat <- read.dta("traffic_safety2.dta")
 
 
 ```
@@ -53,21 +89,75 @@ dat <- read.dta("ps1.dta")
 
 # 3a - Pooled bivariate OLS
 
+The below regression shows that the existence of a primary belt law has a result of decreasing per capita fatalities by 14%.
 
+```{r 3a pooled}
+dat$fatal_pc <- log(dat$fatalities/dat$population)
 
-```{r 3a}
-
+# pooled bivariate OLS
+reg1 <- lm(fatal_pc ~ primary, data = dat)
+summary(reg1)
 
 ```
+
+
+When including time trends, the effect is reduced to a 7.4% reduction in per capita fatalities.
+
+```{r 3a quad time}
+dat$time_sq <- dat$year^2
+
+# pooled bivariate OLS
+reg2 <- lm(fatal_pc ~ primary + dat$year + dat$time_sq, data = dat)
+summary(reg2)
+
+```
+
+When including relevant covariates, the effect is reduced to an insignificant 0.2% reduction in per capita fatalities.
+
+```{r 3a covariates}
+
+# pooled bivariate OLS
+reg3 <- lm(fatal_pc ~ primary + year + college + beer + secondary + population + unemploy + totalvmt + precip + snow32 + rural_speed + urban_speed, data = dat)
+summary(reg3)
+
+```
+
+Adding covariates leads to the reduction of coefficient of interest (the effect of the primary belt laws). This result makes sense as predetermined covariates which are correlated with seat belt laws in some way might also explain the variation in per capita fatalities. For this reason, including the covariates gives us a better esimate as we including relevant variables.
+
 
 # 3b - Standard errors for bivariate OLS
 
+No, the above standard errors are likely not correct due to serial correlation across time within the cross-sectional units. Importantly, this is not solved by using the Huber-White Heteroskedastic robust standard errors because that design is not meant to deal with serial correlation but rather heterogenous error terms that are correlated with the covariates.
 
 
-```{r 3b}
+```{r 3b huber-white}
+
+#OLS coefficients and regular standard errors
+round(coeftest(reg3),4)
+
+#OLS coefficients and white standard errors
+round(coeftest(reg3, vcov = vcovHC(reg3, type = "HC1")),4)
+
+```
+
+Notice that the standard errors in the standard case (0.0253) are not much different from the standard errors from Hubert-White (0.0233).
+
+```{r 3b clustered}
+formula <- 'fatal_pc ~ primary + year + college + beer + primary + secondary + population + unemploy + totalvmt + precip + snow32 + rural_speed + urban_speed'
+
+
+felm_formula_clust <- paste(formula,'| 0 | 0 | state', sep = '') %>%
+  as.formula()
+felm.clust <- felm( felm_formula_clust, 
+                    dat)
+# the estimates don't change, but the standard errors do
+#OLS coefficients and regular standard errors
+round(coeftest(felm.clust),4)
 
 
 ```
+
+In this case, while the coefficient estimates remain the same, the standard errors are doubled to 0.0557.
 
 
 # 3c - between estimator
