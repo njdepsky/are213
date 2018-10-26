@@ -21,7 +21,6 @@ theme_plot <- theme(
   legend.key = element_blank(),
   legend.title = element_blank(),
   legend.spacing.x = unit(0.3, "cm"))
-
 ```
 
 # 1a - Show betas numerically identical
@@ -80,55 +79,65 @@ Import Data
 setwd("C:\\Users\\Will\\Desktop\\are213\\PS2a")
 
 dat <- read.dta("traffic_safety2.dta")
-
-
 ```
-
-
-
 
 # 3a - Pooled bivariate OLS
 
 The below regression shows that the existence of a primary belt law has a result of decreasing per capita fatalities by 14%.
 
+\vspace{12pt}  
+
 ```{r 3a pooled}
+
+# as.factor command on fixed effects
+dat$state <- as.factor(dat$state)
+dat$year <- as.factor(dat$year)
+
 dat$fatal_pc <- log(dat$fatalities/dat$population)
+
+# fix the attribute labels
+attributes(dat)$var.labels = c("state", "year", attributes(dat)$var.labels[-(1:2)], 
+                               "log of traffic fatalities per capita")
 
 # pooled bivariate OLS
 reg1 <- lm(fatal_pc ~ primary, data = dat)
 summary(reg1)
-
 ```
 
+\vspace{12pt}  
 
 When including time trends, the effect is reduced to a 7.4% reduction in per capita fatalities.
 
+\vspace{12pt}
+
 ```{r 3a quad time}
-dat$time_sq <- dat$year^2
+dat$time <- as.numeric(as.character(dat$year))-1981
+dat$time_sq <- (dat$time)^2
 
 # pooled bivariate OLS
-reg2 <- lm(fatal_pc ~ primary + dat$year + dat$time_sq, data = dat)
+reg2 <- lm(fatal_pc ~ primary + dat$time_sq, data = dat)
 summary(reg2)
-
 ```
+\vspace{12pt}
 
-When including relevant covariates, the effect is reduced to an insignificant 0.2% reduction in per capita fatalities.
+When including relevant covariates, the effect is also reduced to a 9% (rather than 14%) reduction in per capita fatalities.
+\vspace{12pt}
 
 ```{r 3a covariates}
 
 # pooled bivariate OLS
-reg3 <- lm(fatal_pc ~ primary + year + college + beer + secondary + population + unemploy + totalvmt + precip + snow32 + rural_speed + urban_speed, data = dat)
+reg3 <- lm(fatal_pc ~ primary + college + beer + secondary + population + unemploy + totalvmt + precip +
+             snow32 + rural_speed + urban_speed, data = dat)
 summary(reg3)
-
 ```
-
+\vspace{12pt}
 Adding covariates leads to the reduction of coefficient of interest (the effect of the primary belt laws). This result makes sense as predetermined covariates which are correlated with seat belt laws in some way might also explain the variation in per capita fatalities. For this reason, including the covariates gives us a better esimate as we including relevant variables.
 
 
 # 3b - Standard errors for bivariate OLS
 
 No, the above standard errors are likely not correct due to serial correlation across time within the cross-sectional units. Importantly, this is not solved by using the Huber-White Heteroskedastic robust standard errors because that design is not meant to deal with serial correlation but rather heterogenous error terms that are correlated with the covariates.
-
+\vspace{12pt}
 
 ```{r 3b huber-white}
 
@@ -137,13 +146,17 @@ round(coeftest(reg3),4)
 
 #OLS coefficients and white standard errors
 round(coeftest(reg3, vcov = vcovHC(reg3, type = "HC1")),4)
-
 ```
 
-Notice that the standard errors in the standard case (0.0253) are not much different from the standard errors from Hubert-White (0.0233).
+\vspace{12pt}
+
+Notice that the standard errors in the standard case (0.0243) are not much different from the standard errors from Hubert-White (0.0234).
+
+\vspace{12pt}
 
 ```{r 3b clustered}
-formula <- 'fatal_pc ~ primary + year + college + beer + primary + secondary + population + unemploy + totalvmt + precip + snow32 + rural_speed + urban_speed'
+formula <- 'fatal_pc ~ primary + college + beer + primary + secondary + population + unemploy + 
+totalvmt + precip + snow32 + rural_speed + urban_speed'
 
 
 felm_formula_clust <- paste(formula,'| 0 | 0 | state', sep = '') %>%
@@ -153,58 +166,186 @@ felm.clust <- felm( felm_formula_clust,
 # the estimates don't change, but the standard errors do
 #OLS coefficients and regular standard errors
 round(coeftest(felm.clust),4)
+```
+\vspace{12pt}
+In this case, while the coefficient estimates remain the same, the standard errors are doubled to 0.0557 and the test for significance did not pass. We were not surprised of the change since clustered standard errors do have a significant effect, though we were more surprised by the fact that it was a large enough change that the significance changed.
 
+\vspace{12pt}
+
+```{r 3b manual}
+# Function to convert tibble, data.frame, or tbl_df to matrix
+to_matrix <- function(the_df, vars) {
+  # Create a matrix from variables in var
+  new_mat <- the_df %>%
+    # Select the columns given in 'vars'
+    select_(.dots = vars) %>%
+    # Convert to matrix
+    as.matrix()
+  # Return 'new_mat'
+  return(new_mat)
+}
+
+#OLS
+b_ols <- function(y, X) {
+  # Calculate beta hat
+  beta_hat <- solve(t(X) %*% X) %*% t(X) %*% y
+  # Return beta_hat
+  return(beta_hat)
+}
+
+#create function to calculate vcov matrix
+vcov_cluster <- function(data, y_var, X_vars,
+  cluster_var, intercept = T) {
+    # Turn data into matrices
+    y <- to_matrix(data, y_var)
+    X <- to_matrix(data, X_vars)
+    # Add intercept
+    if (intercept == T) X <- cbind(1, X)
+    # Calculate n and k for degrees of freedom
+    n <- nrow(X)
+    k <- ncol(X)
+    # Estimate coefficients
+    b <- b_ols(y, X)
+    # Update names
+    if (intercept == T) rownames(b)[1] <- "Intercept"
+    # Calculate OLS residuals
+    e <- y - X %*% b
+    # Inverse of X'X
+    XX_inv <- solve(t(X) %*% X)
+    # Find the levels of the variable on which we are clustering
+    cl_levels <- data[, cluster_var] %>% unique() %>% unlist()
+    # Calculate the meat, iterating over the clusters
+    meat_hat <- lapply(X = cl_levels, FUN = function(g) {
+      # Find the row indices for the current cluster
+      indices <- which(unlist(data[, cluster_var]) == g)
+      # Grab the current cluster's rows from X and e
+      X_g <- X[indices,]
+      e_g <- e[indices] %>% matrix(ncol = 1)
+      # Calculate this cluster's part of the meat estimate
+      return(t(X_g) %*% e_g %*% t(e_g) %*% X_g)
+      }) %>% Reduce(f = "+", x = .) / n
+    # Find the number of clusters
+    G <- length(cl_levels)
+    # Degrees-of-freedom correction
+    df_c <- G/(G-1) * (n-1)/(n-k)
+    # Return the results
+    return(df_c * n * XX_inv %*% meat_hat %*% XX_inv)
+  }
+
+# get the vcov matrix
+y <- 'fatal_pc'
+x <- c('primary','college', 'beer', 'secondary' , 'population' , 'unemploy' , 'totalvmt' , 'precip' ,
+       'snow32' , 'rural_speed' ,'urban_speed')
+clus <- 'state'
+vcov.lm.clust = vcov_cluster(dat,y,x,clus)
+
+# show results
+round(coeftest(reg3, vcov = vcov.lm.clust),4)
 
 ```
-
-In this case, while the coefficient estimates remain the same, the standard errors are doubled to 0.0557.
-
+\vspace{12pt}
+See the manual clustering strategy also resulted in a std error of 0.0569.
+\vspace{12pt}
 
 # 3c - between estimator
 
-
-
-```{r 3c}
-
-
+```{r 3c nocov}
+between_nocov <- plm(fatal_pc ~ primary, data = dat, model = "between")
+summary(between_nocov)
 ```
+
+```{r 3c cov}
+between_cov <- plm(fatal_pc ~ primary + college + beer + secondary + population + unemploy + 
+                     totalvmt + precip + snow32 + rural_speed + urban_speed, 
+                   data = dat, model = "between") 
+summary(between_cov)
+```
+
+Between estimator without covariates: We see a 7.12 percent reduction in fatalities with a standard error that results in an insignificant result.
+
+Including covariates we see a 17.06 percent increase in fatalities but again the standard error suggests that these results are not statistically significant.
+
+If the state specific term is correlated with the covariates we expect the estimates to be biased. Here, we do expect a correlation. For example: unemployment, speed limits, snow, college are all expected to be corelated to state. 
+
+Between estimator only uses between individual variation rather than the time variation. In other words, it discards all the information due to intertemporal variability. Since we can see some degree of intertemporal variability in our data, we expect biased results. If there wasn't any time period based variation, we could expect this to give less biased estimates. 
+
+For the same reasons, we are also concerned about the standard errors here. Furthermore, we are not clustering again here which would lead to inaccurate standard errors.
+
 
 # 3d - random effects
 
 
-
 ```{r 3d}
-
+rand_eff <- plm(fatal_pc ~ primary + college + beer + secondary + population + 
+                  unemploy + totalvmt + precip + snow32 + rural_speed + urban_speed, 
+                data = dat, index =c("state","year"),model = "random") 
+summary(rand_eff)
 
 ```
+
+The RE estimator shows that states that have primary seatbelt laws see a decrease of 14 percent in fatalities per capita as compared to states that do not have this primary law. This result is significant. The RE estimate is different from the OLS estimate. The OLS SE is greater than the RE SE since we expect the RE estimator to give us more efficient estimates, i.e., more time invariant explanatory variables are accounted for in the RE regression, improving the predictive capacity of the model and reducing its overall variance. The RE estimator will give us unbiased estimates of the effect of primary seat bet laws on fatalities per capita if the state specific (unobserved) effects are uncorrelated with the explanatory variables.
 
 # 3e - standard errors from RE
 
-
-
 ```{r 33}
+C <- length(unique(dat$state))
+N <- length(dat$state)
+K <- 11 +                               # all the other covariates
+     1 +                                # the intercept
+     length(unique(dat$state)) - 1 +   # the state dummies - ommitted state = 1
+     length(unique(dat$year)) - 1      # the year dummies - ommitted year = 1981
 
+adjustment <- (C/(C - 1)) * (N - 1)/(N - K)
+remove(C, N, K)
+
+# when we cluster within group, we need to use the arellano method
+#   when we cluster within time, we need to use the white method (see help file)
+vcov.plm.clust = vcovHC(rand_eff, 
+                        method = "arellano", 
+                        cluster = "group") * adjustment
+
+# save results
+
+round(coeftest(rand_eff, vcov = vcov.plm.clust),4)
 
 ```
+
+There is potential serial correlation between the composite error terms across each time period in the RE model, resulting in biased standard errors. The clustered standard errors are almost double the normal standard errors indicating that there is more variability at the cluster level (by state) than there is at the individual state level. Further, the number of cluster observations are fewer than individual state level observations, increasing the variance in clustered SEs. 
+
+This implies that the correlation error structure assumed in RE is incorrect and FE would be a better method in this case.
 
 # 3f - FE estimator
 
-
-
-```{r 3f}
-
-
+```{r 3f non-clustered}
+#non-clustered results
+formula <- 'fatal_pc ~ primary + time_sq'
+fixed_eff <- felm( as.formula( paste( formula, '+ year | state | 0 | 0' ) ), 
+                     dat) 
+summary(fixed_eff)
 ```
+
+```{r 3f clustered}
+#non-clustered results
+formula <- 'fatal_pc ~ primary + time_sq'
+fixed_eff <- felm( as.formula( paste( formula, '+ year | state | 0 | state' ) ), 
+                     dat) 
+summary(fixed_eff)
+```
+
+The FE estimate using only primary and quadratic year covariates shows that fatalities per capita reduce by 9.3 percent on average in states that have a primary seatbelt law. The normal robust standard error is less than half of the clustered standard error indicating that correlation within states over time is biasing the normal se.
+
+The normal and clustered standard errors are different due to the serial correlation between the error terms of the states over time. 
 
 # 3g - stability of FE
 
-
-
 ```{r 3g}
-
-
+formula <- 'fatal_pc ~ primary + college + beer + primary + secondary + population + unemploy + 
+totalvmt + precip + snow32 + rural_speed + urban_speed'
+fixed_eff <- felm( as.formula( paste( formula, '+ year | state | 0 | 0' ) ), 
+                     dat) 
+summary(fixed_eff)
 ```
 
-
+The FE estimate gives us an ATE of -9 percent which is the same as the OLS estimator while the standard errors are lower for FE estimates (both without clustering). The FE estimates are more stable than the pooled OLS estimates since they account for time invariant state-specific effects which are usually unobserved, and hence cannot be explicitly included in the pooled OLS regression. 
 
 
