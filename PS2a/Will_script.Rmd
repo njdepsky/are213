@@ -27,8 +27,8 @@ theme_plot <- theme(
 
 First, let's start with the fixed effects estimator which is estimated by demeaning each equation.
 
-To calculate the means let: $\overline{y}_i = \dfrac{{y}_i1 + {y}_i2}{2}$, 
-$\overline{x}_i = \dfrac{{x}_i1 + {x}_i2}{2}$, 
+To calculate the means let: $\overline{y}_i = \dfrac{{y}_{i1} + {y}_{i2}}{2}$, 
+$\overline{x}_i = \dfrac{{x}_{i1} + {x}_{i2}}{2}$, 
 and $\overline{\epsilon}_i = \dfrac{{\epsilon}_i1 + {\epsilon}_i2}{2}$
 
 Then: \[{\beta}_{FE} = \Bigg[\sum_{i=1}^{N}\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[x_{it}-\overline{x}_i]\Bigg]\sum_{i=1}^{N}\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[y_{it}-\overline{y}_i]\]
@@ -53,7 +53,7 @@ And the 2s cancel each other out.
 
 Now, let's look at the difference estimator. These are calculated by using the difference across time periods to eliminate the unobservables:
 
-\[y_{i2}-{y}_{i1} = [x_{i2}-{x}_{i1}]\beta + [\epsilon_{i2}-{\epsilon}] \rightarrow \Delta y_{i} = \Delta y_{i}\beta + \Delta \epsilon_{i}\]
+\[y_{i2}-{y}_{i1} = [x_{i2}-{x}_{i1}]\beta + [\epsilon_{i2}-{\epsilon_{i1}}] \rightarrow \Delta y_{i} = \Delta x_{i}\beta + \Delta \epsilon_{i}\]
 
 Assuming that we have strict exogeneity and the errors are orthogonal to the Xs, the difference estimate becomes the same as the fixed estimator found above: 
 
@@ -77,11 +77,12 @@ Furthermore, we can use the fact the the coefficients are the same for the two e
 
 \[\dfrac{-\Delta y_{i} + \Delta x_{i}\beta_{DE}}{2} = \dfrac{e^{DE}_{i}}{2}\]
 
-The same resulst happens for t = 2. Then, back to \[\sigma^2_{FE}\]
+The same resulst happens for t = 2 and we can use these residuals to compare the variances on the estimators of the coefficients. 
 
-Plug in what we just solved for to get \[\sigma^2_{FE} = \dfrac{1}{2}\sigma^2_{DE}\]
+When returning to the squared sigmas we can now relate them between fixed effects and the differences estimator by plugging in what we just solved for to get:
+\[\sigma^2_{FE} = \dfrac{1}{2}\sigma^2_{DE}\]
 
-Then, we can show that the variances are the same to difference estimator:
+Then, we can show that the variances of the fixed effects estimator are the same to difference estimator:
 
 \[V(\beta_{FE}) = \sigma^2_{DE}\Bigg[\sum_{t=1}^{N}[\Delta x_{i}'\Delta x_{i}]\Bigg]^{-1} = \]
 
@@ -89,7 +90,7 @@ Then, we can show that the variances are the same to difference estimator:
 
 \[\sigma^2_{FE}\Bigg[\sum_{t=1}^{N}\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[x_{it}-\overline{x}_i]\Bigg]^{-1}=\]
 
-One notices that this final thing is the Variance of the coefficient on the fixed effects.
+One notices that this final equation is the Variance of the coefficient on the fixed effects, proving that the variances are the same between the estimators.
 
 # 2a - Show fixed effect estimator with transformations
 
