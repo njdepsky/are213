@@ -25,8 +25,71 @@ theme_plot <- theme(
 
 # 1a - Show betas numerically identical
 
+First, let's start with the fixed effects estimator which is estimated by demeaning each equation.
+
+To calculate the means let: $\overline{y}_i = \dfrac{{y}_i1 + {y}_i2}{2}$, 
+$\overline{x}_i = \dfrac{{x}_i1 + {x}_i2}{2}$, 
+and $\overline{\epsilon}_i = \dfrac{{\epsilon}_i1 + {\epsilon}_i2}{2}$
+
+Then: \[{\beta}_{FE} = \Bigg[\sum_{i=1}^{N}\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[x_{it}-\overline{x}_i]\Bigg]\sum_{i=1}^{N}\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[y_{it}-\overline{y}_i]\]
+
+Substituting in the means: \[\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[x_{it}-\overline{x}_i] = \sum_{t=1}^{2}[x_{it}-\dfrac{{x}_{i1} + {x}_{i2}}{2}]'[x_{it}-\dfrac{{x}_{i1} + {x}_{i2}}{2}] = \]
+
+
+\[[\dfrac{{x}_{i1} - {x}_{i2}}{2}]'[\dfrac{{x}_{i1} - {x}_{i2}}{2}]+[\dfrac{{x}_{i2} - {x}_{i1}}{2}]'[\dfrac{{x}_{i2} - {x}_{i1}}{2}] = \]
+
+\[[\dfrac{\Delta x_{i}'\Delta x_{i}}{2}] \]
+
+Similarly for the second half: \[\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[y_{it}-\overline{y}_i] = \sum_{t=1}^{2}[x_{it}-\dfrac{{x}_{i1} + {x}_{i2}}{2}]'[y_{it}-\dfrac{{y}_{i1} + {y}_{i2}}{2}] = \]
+
+
+\[[\dfrac{{x}_{i1} - {x}_{i2}}{2}]'[\dfrac{{y}_{i1} - {y}_{i2}}{2}]+[\dfrac{{x}_{i2} - {x}_{i1}}{2}]'[\dfrac{{y}_{i2} - {y}_{i1}}{2}] = \]
+
+\[[\dfrac{\Delta x_{i}'\Delta y_{i}}{2}] \]
+
+And the fixed effect estimator is: \[{\beta}_{FE} = \Bigg[\sum_{t=1}^{N}[\dfrac{\Delta x_{i}'\Delta x_{i}}{2}]\Bigg]^{-1}\sum_{t=1}^{N}[\dfrac{\Delta x_{i}'\Delta y_{i}}{2}]\]
+
+And the 2s cancel each other out.
+
+Now, let's look at the difference estimator. These are calculated by using the difference across time periods to eliminate the unobservables:
+
+\[y_{i2}-{y}_{i1} = [x_{i2}-{x}_{i1}]\beta + [\epsilon_{i2}-{\epsilon}] \rightarrow \Delta y_{i} = \Delta y_{i}\beta + \Delta \epsilon_{i}\]
+
+Assuming that we have strict exogeneity and the errors are orthogonal to the Xs, the difference estimate becomes the same as the fixed estimator found above: 
+
+\[{\beta}_{DE} = \Bigg[\sum_{t=1}^{N}[\Delta x_{i}'\Delta x_{i}]\Bigg]^{-1}\sum_{t=1}^{N}[\Delta x_{i}'\Delta y_{i}]\]
+
 # 1b - Show standard errors numerically identical
 
+Variance covariance matrix of fixed effects equals: \[\sigma^2_{FE}\Bigg[\sum_{t=1}^{N}\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[x_{it}-\overline{x}_i]\Bigg]^{-1}\]
+
+where
+
+\[e^{FE}_{it} = [y_{it}-\overline{y}_i] - [x_{it}-\overline{x}_i]{\beta}_{FE}\] t = 1,2
+
+so that
+
+\[\sigma^2_{FE} = \dfrac{\sum_{t=1}^{N}e^{FE}_{i1}+e^{FE}_{i2}}{N-k}\]
+
+Furthermore, we can use the fact the the coefficients are the same for the two estimators:
+
+\[e^{FE}_{i1} =  [\dfrac{{y}_{i2} - {y}_{i1}}{2}] - [\dfrac{{x}_{i2} - {x}_{i1}}{2}]{\beta}_{FE} = \]
+
+\[\dfrac{-\Delta y_{i} + \Delta x_{i}\beta_{DE}}{2} = \dfrac{e^{DE}_{i}}{2}\]
+
+The same resulst happens for t = 2. Then, back to \[\sigma^2_{FE}\]
+
+Plug in what we just solved for to get \[\sigma^2_{FE} = \dfrac{1}{2}\sigma^2_{DE}\]
+
+Then, we can show that the variances are the same to difference estimator:
+
+\[V(\beta_{FE}) = \sigma^2_{DE}\Bigg[\sum_{t=1}^{N}[\Delta x_{i}'\Delta x_{i}]\Bigg]^{-1} = \]
+
+\[\dfrac{\sigma^2_{DE}}{2}\Bigg[\sum_{t=1}^{N}[\dfrac{\Delta x_{i}'\Delta x_{i}}{2}]\Bigg]^{-1} = \]
+
+\[\sigma^2_{FE}\Bigg[\sum_{t=1}^{N}\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[x_{it}-\overline{x}_i]\Bigg]^{-1}=\]
+
+One notices that this final thing is the Variance of the coefficient on the fixed effects.
 
 # 2a - Show fixed effect estimator with transformations
 
@@ -64,7 +127,7 @@ which is the same outcome as the two-way within model approach listed above.
 
 If we were to instead run the first order transformation on the individual fxed effects averaged model, and use time-averaged values in place of individual fixed effects averages in the second transformation, rather than obtaining $\lambda_{t} - \overline{\lambda}_t$ in both one-way transformations, we would obtain $\mu_{i} - \overline{\mu}_i$ in each transformation, but they would still fall out in the last step and yield the same outcome. Intuitively, it makes sense that we should see the same outcome, whether we control for time or individual effects first or second.
 
-# 2b - Change with imbalance?
+# 2c - Change with imbalance?
 
 Generally speaking, fixed effects models can handle missing observations suggested by an unbalanced panel. However, if the panel becomes unbalanced for a reason correlated to the variables of interest, then there may be some sample selection bias that arises. 
 
