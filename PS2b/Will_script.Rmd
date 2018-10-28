@@ -1,0 +1,66 @@
+---
+title: "ARE 213 Problem Set 2b"
+author: "Nick Depsky, Will Gorman, Peter Worley"
+date: "November 9, 2018"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r, include = F}
+rm(list = ls())
+library(pacman)
+p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer", "glmnet","splines")
+theme_plot <- theme(
+  legend.position = "right",
+  panel.background = element_rect(fill = NA),
+  panel.border = element_rect(fill = NA, color = "grey75"),
+  axis.ticks = element_line(color = "grey85"),
+  panel.grid.major = element_line(color = "grey95", size = 0.2),
+  panel.grid.minor = element_line(color = "grey95", size = 0.2),
+  legend.key = element_blank(),
+  legend.title = element_blank(),
+  legend.spacing.x = unit(0.3, "cm"))
+```
+
+Import Data
+
+```{r}
+#setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS1b")
+#setwd("C:\\Users\\will-\\Desktop\\are213\\PS1b")
+setwd("C:\\Users\\Will\\Desktop\\are213\\PS2b")
+
+dat <- read.dta("ps1.dta")
+```
+
+# 1a - Aggregate treatment analysis
+
+```{r 1a}
+
+
+```
+
+
+# 1b - Synthetic control method
+
+```{r 1b}
+
+
+```
+
+
+# 1c - Graphical interpretation and treatment
+
+```{r 1c}
+
+
+```
+
+# 1d - Comparison to fixed effects
+
+
+```{r 1d}
+
+
+```
+
