@@ -25,7 +25,7 @@ theme_plot <- theme(
 
 # 1a - Show betas numerically identical
 
-First, let's start with the fixed effects estimator which is estimated by demeaning each equation.
+First, let's start with the fixed effects estimator which we will represent here as the within estimator. This is estimated by demeaning each equation.
 
 To calculate the means let: $\overline{y}_i = \dfrac{{y}_{i1} + {y}_{i2}}{2}$, 
 $\overline{x}_i = \dfrac{{x}_{i1} + {x}_{i2}}{2}$, 
@@ -33,23 +33,31 @@ and $\overline{\epsilon}_i = \dfrac{{\epsilon}_i1 + {\epsilon}_i2}{2}$
 
 Then: \[{\beta}_{FE} = \Bigg[\sum_{i=1}^{N}\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[x_{it}-\overline{x}_i]\Bigg]\sum_{i=1}^{N}\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[y_{it}-\overline{y}_i]\]
 
-Substituting in the means: \[\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[x_{it}-\overline{x}_i] = \sum_{t=1}^{2}[x_{it}-\dfrac{{x}_{i1} + {x}_{i2}}{2}]'[x_{it}-\dfrac{{x}_{i1} + {x}_{i2}}{2}] = \]
+Substituting in the means for the X'X term: \[\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[x_{it}-\overline{x}_i] = \sum_{t=1}^{2}[x_{it}-\dfrac{{x}_{i1} + {x}_{i2}}{2}]'[x_{it}-\dfrac{{x}_{i1} + {x}_{i2}}{2}] = \] 
 
+\[[x_{i1}-\dfrac{{x}_{i1} + {x}_{i2}}{2}]'[x_{i1}-\dfrac{{x}_{i1} + {x}_{i2}}{2}]+[x_{i2}-\dfrac{{x}_{i1} + {x}_{i2}}{2}]'[x_{i2}-\dfrac{{x}_{i1} + {x}_{i2}}{2}] = \]
+
+\[[\dfrac{{2x}_{i1} - {x}_{i1} - {x}_{i2}}{2}]'[\dfrac{{2x}_{i1} - {x}_{i1} - {x}_{i2}}{2}]+[\dfrac{{2x}_{i2} - {x}_{i1} - {x}_{i2}}{2}]'[\dfrac{{2x}_{i2} - {x}_{i1} - {x}_{i2}}{2}] = \]
 
 \[[\dfrac{{x}_{i1} - {x}_{i2}}{2}]'[\dfrac{{x}_{i1} - {x}_{i2}}{2}]+[\dfrac{{x}_{i2} - {x}_{i1}}{2}]'[\dfrac{{x}_{i2} - {x}_{i1}}{2}] = \]
 
-\[[\dfrac{\Delta x_{i}'\Delta x_{i}}{2}] \]
+\[(-1*[\dfrac{{x}_{i2} - {x}_{i1}}{2}])'(-1*[\dfrac{{x}_{i2} - {x}_{i1}}{2}])+[\dfrac{{x}_{i2} - {x}_{i1}}{2}]'[\dfrac{{x}_{i2} - {x}_{i1}}{2}] = \]
 
-Similarly for the second half: \[\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[y_{it}-\overline{y}_i] = \sum_{t=1}^{2}[x_{it}-\dfrac{{x}_{i1} + {x}_{i2}}{2}]'[y_{it}-\dfrac{{y}_{i1} + {y}_{i2}}{2}] = \]
+\[(2*[\dfrac{{x}_{i2} - {x}_{i1}}{2}]'[\dfrac{{x}_{i2} - {x}_{i1}}{2}] = \]
 
+The 2s cancel.
+
+\[[{x}_{i2} - {x}_{i1}]'[{x}_{i2} - {x}_{i1}] = [\Delta x_{i}'\Delta x_{i}] \]
+
+Similarly for the X'Y term: \[\sum_{t=1}^{2}[x_{it}-\overline{x}_i]'[y_{it}-\overline{y}_i] = \sum_{t=1}^{2}[x_{it}-\dfrac{{x}_{i1} + {x}_{i2}}{2}]'[y_{it}-\dfrac{{y}_{i1} + {y}_{i2}}{2}] = \]
 
 \[[\dfrac{{x}_{i1} - {x}_{i2}}{2}]'[\dfrac{{y}_{i1} - {y}_{i2}}{2}]+[\dfrac{{x}_{i2} - {x}_{i1}}{2}]'[\dfrac{{y}_{i2} - {y}_{i1}}{2}] = \]
 
-\[[\dfrac{\Delta x_{i}'\Delta y_{i}}{2}] \]
+\[(2*[\dfrac{{x}_{i2} - {x}_{i1}}{2}]'[\dfrac{{y}_{i2} - {y}_{i1}}{2}] = \]
 
-And the fixed effect estimator is: \[{\beta}_{FE} = \Bigg[\sum_{t=1}^{N}[\dfrac{\Delta x_{i}'\Delta x_{i}}{2}]\Bigg]^{-1}\sum_{t=1}^{N}[\dfrac{\Delta x_{i}'\Delta y_{i}}{2}]\]
+\[[{x}_{i2} - {x}_{i1}]'[{y}_{i2} - {y}_{i1}] = [\Delta x_{i}'\Delta y_{i}] \]
 
-And the 2s cancel each other out.
+And the fixed effect estimator is: \[{\beta}_{FE} = \Bigg[\sum_{t=1}^{N}[\Delta x_{i}'\Delta x_{i}]\Bigg]^{-1}\sum_{t=1}^{N}[\Delta x_{i}'\Delta y_{i}]\]
 
 Now, let's look at the difference estimator. These are calculated by using the difference across time periods to eliminate the unobservables:
 
@@ -138,9 +146,9 @@ Also, it may be possible that the $\overline{\mu}_i$ terms or the $\overline{\la
 
 Import Data
 ```{r}
-#setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS1b")
+setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS2a")
 #setwd("C:\\Users\\will-\\Desktop\\are213\\PS1b")
-setwd("C:\\Users\\Will\\Desktop\\are213\\PS2a")
+#setwd("C:\\Users\\Will\\Desktop\\are213\\PS2a")
 
 dat <- read.dta("traffic_safety2.dta")
 ```
