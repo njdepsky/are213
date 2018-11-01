@@ -10,7 +10,7 @@ output:
 ```{r, include = F}
 rm(list = ls())
 library(pacman)
-p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer", "glmnet","splines")
+p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer", "glmnet","splines","Synth")
 theme_plot <- theme(
   legend.position = "right",
   panel.background = element_rect(fill = NA),
@@ -27,19 +27,41 @@ Import Data
 
 ```{r}
 #setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS1b")
-#setwd("C:\\Users\\will-\\Desktop\\are213\\PS1b")
-setwd("C:\\Users\\Will\\Desktop\\are213\\PS2b")
+setwd("C:\\Users\\will-\\Desktop\\are213\\PS2b")
+#setwd("C:\\Users\\Will\\Desktop\\are213\\PS2b")
 
-dat <- read.dta("ps1.dta")
+dat <- read.dta("traffic_safety2.dta")
 ```
 
 # 1a - Aggregate treatment analysis
 
-```{r 1a}
+```{r 1a part 1}
+dat$fatal_pc <- log(dat$fatalities/dat$population)
+dat$control <- ifelse(dat$state %in% c(6,10,30,41),1,ifelse(dat$state == 99,2,0))
 
+dat %>% group_by(control,primary) %>% summarize(avg = mean(fatal_pc))
+print("where the pre-treatment average are when primary = 0 \n The treatment aggregate is equal to 2 and the control average is equal to 0")
+
+summary_yr <- dat %>% group_by(control,year) %>% summarize(avg = mean(fatal_pc))
+
+ggplot(summary_yr[summary_yr$control != 1,], aes(x=year, y=avg, group = factor(control), color = factor(control))) + geom_line() +geom_point( size=4, shape=21, fill="white") + theme_plot + scale_color_manual(labels = c("Control", "Treatment"), values = c("blue","red")) + geom_vline(xintercept = 1986) + annotate("text", x=1990, y=-1.3, label= "treatment year")
 
 ```
 
+```{r 1a part 2}
+rm_treat <- dat[dat$control != 1,]
+
+result <- rm_treat %>% 
+             group_by(control, primary, state) %>%
+             filter(year == max(year))
+
+result[result$primary == 0,c(1,2,15,16)]
+
+rm_treat <- dat[dat$control != 1,]
+
+```
+
+Georgia appears to be the closest state. 
 
 # 1b - Synthetic control method
 
