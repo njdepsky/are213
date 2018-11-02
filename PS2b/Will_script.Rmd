@@ -27,26 +27,41 @@ Import Data
 
 ```{r}
 #setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS1b")
-setwd("C:\\Users\\will-\\Desktop\\are213\\PS2b")
-#setwd("C:\\Users\\Will\\Desktop\\are213\\PS2b")
+#setwd("C:\\Users\\will-\\Desktop\\are213\\PS2b")
+setwd("C:\\Users\\Will\\Desktop\\are213\\PS2b")
 
 dat <- read.dta("traffic_safety2.dta")
 ```
 
 # 1a - Aggregate treatment analysis
 
+In the first tibble printed below, we see that the average pre-period dependent variable for the TU site is -1.38 while that for the control states is -1.71 suggesting that the treatment states have a higher per capita fatality rate than the control states.
+
 ```{r 1a part 1}
 dat$fatal_pc <- log(dat$fatalities/dat$population)
 dat$control <- ifelse(dat$state %in% c(6,10,30,41),1,ifelse(dat$state == 99,2,0))
 
 dat %>% group_by(control,primary) %>% summarize(avg = mean(fatal_pc))
-print("where the pre-treatment average are when primary = 0 \n The treatment aggregate is equal to 2 and the control average is equal to 0")
+
+## In the above table,  the pre-treatment average are when primary = 0 
+## The treatment aggregate is equal to 2 and
+## the control average is equal to 0
 
 summary_yr <- dat %>% group_by(control,year) %>% summarize(avg = mean(fatal_pc))
 
-ggplot(summary_yr[summary_yr$control != 1,], aes(x=year, y=avg, group = factor(control), color = factor(control))) + geom_line() +geom_point( size=4, shape=21, fill="white") + theme_plot + scale_color_manual(labels = c("Control", "Treatment"), values = c("blue","red")) + geom_vline(xintercept = 1986) + annotate("text", x=1990, y=-1.3, label= "treatment year")
+ggplot(summary_yr[summary_yr$control != 1,], 
+       aes(x=year, y=avg, group = factor(control), color = factor(control))) + 
+  geom_line() +geom_point( size=4, shape=21, fill="white") + theme_plot + 
+  scale_color_manual(labels = c("Control", "Treatment"), values = c("blue","red")) + 
+  geom_vline(xintercept = 1986) + annotate("text", x=1990, y=-1.3, label= "treatment year")
 
 ```
+
+\vspace{12pt}  
+
+Looking at the TU pre-period (red line before 1986), we see that there was a significantly different pre-period trend that we would worry about when running our econometric analysis. The graph also shows that the treatment states had a noticeably higher pre-treatment per capita fatality rate than the control states.
+
+\vspace{12pt}  
 
 ```{r 1a part 2}
 rm_treat <- dat[dat$control != 1,]
@@ -55,34 +70,154 @@ result <- rm_treat %>%
              group_by(control, primary, state) %>%
              filter(year == max(year))
 
-result[result$primary == 0,c(1,2,15,16)]
+result <- result[result$primary == 0,c(1,2,15,16)]
+result <- result[result$year != 2003,]
+print(result[order(result$fatal_pc),])
 
 rm_treat <- dat[dat$control != 1,]
 
 ```
 
-Georgia appears to be the closest state. 
+Georgia (which is state number 9) appears to be the closest state to our treatment state (state number 99)
+
+```{r 1a part 2 cont}
+rm_comp <- dat[dat$state %in% c(9,99),]
+
+rm_comp %>% group_by(primary, secondary,state) %>%
+             summarise_all(funs(mean))
+
+
+```
+
+The independent variables do not appear very similar. The population, for instance, is much larger in the treated states, resulting in much larger vmt trips.  Furthermore, it appears the weather is different with less rain in the treated states and marginally more snow. 
 
 # 1b - Synthetic control method
 
+The synthetic control method compares aggregated outcomes in a number of different control observations to a measured treatment effect. A synthetic control is formed from a group of potential control units, and is designed by evaluating covariates in a pre-treatment periods, developing weights for each potential control based on its distance from the treated group. Once the weights are formulated using pre-treatment data, The the post-treatment outcome are computed for the aggregated control unit to synthesize a counterfactual to the treated unit. Finally, the treatment effect is calculated by comparing the treated unit to the synthetic control unit in the post period
+
+Benefits of the method:
+- Transparency - since a synthetic control is a "weighted average of the available control units" the contributions and similarities of each control unit is made transparent.
+
+-  In a quasi-experiment, synthetic controls allows for the empiricist to limit bias in selection of controls by chosing them based on how closely they resemble treated units rather than based on arbitrary characteristics. (i.e. its more rigorous and less ad-hoc)
+
+- Extrapolation can be avoided, due to the fact the sum of the weights can be restricted to one.
+
+- The large number of available control units allows for estimation of appropriate standard errors due to "placebo" estimates.
+
+Drawbacks of the method:
+
+- The method is effective in using and simulating aggragate data, so is not applicable to all empirical situations -- especially with a smaller pool of potential controls. 
+
+- The method assumes outcomes post-treatment in the controls are not impacted by treatment in the treatment unit,or there is no spillover effects. This may not be a reasonable assumption, but Abadie talks through how to test the treatment effect assuming one of the control units had actually been treated, and contends, in his 2010 paper, that this proves the treatment effect is signifcant.
+
 ```{r 1b}
+data <- dat[dat$control != 1,]
+data$state <- as.numeric(data$state)
+
+dataprep.out<-
+dataprep(
+foo = data,
+predictors = c("college", "beer","unemploy","totalvmt","precip","snow32"),
+predictors.op = "mean",
+dependent = "fatal_pc",
+unit.variable = "state",
+time.variable = "year",
+treatment.identifier = 99,
+controls.identifier = c(1:5,7:9,11:29,31:40,42:48),
+time.predictors.prior = c(1981:1985),
+time.optimize.ssr = c(1981:1986),
+time.plot = 1981:2003
+)
+
+synth.out <- synth(dataprep.out)
+
+```
+
+This command is creating weights for each of the control observations we provide it based on using the mean of the observed covariates during the pretreatment period as well as a selection of outcome variables for both the treated and control units. The weights are selected such that they minimize the distance between the treated and control units. 
+
+Our preferred specification followed the above logic.  We rely on the mean of the observed covariates, as this is the default.  We also did not see any reason why other formulations would make sense given we have a large enough number of states. We also selected the time to optimize over to match the pre-treatment period. Since the treatment would likely affect affect the outcome, we did not want to construct a synthetic control around this affected data. Finally, we had to select the predictors of interest. We figured most of our variables would likely have an effect on fatalities, so we included them all in our specifications.
+
+# 1c - Graphical interpretation and treatment
+
+```{r 1c 1st graphs}
+
+dataprep.out.med<-
+dataprep(
+foo = data,
+predictors = c("college", "beer","unemploy","totalvmt","precip","snow32"),
+predictors.op = "median",
+dependent = "fatal_pc",
+unit.variable = "state",
+time.variable = "year",
+treatment.identifier = 99,
+controls.identifier = c(1:5,7:9,11:29,31:40,42:48),
+time.predictors.prior = c(1981:1985),
+time.optimize.ssr = c(1981:1985),
+time.plot = 1981:2003
+)
+
+synth.out.med <- synth(dataprep.out.med)
+
+dataprep.out.full<-
+dataprep(
+foo = data,
+predictors = c("college", "beer","unemploy","totalvmt","precip","snow32"),
+predictors.op = "mean",
+dependent = "fatal_pc",
+unit.variable = "state",
+time.variable = "year",
+treatment.identifier = 99,
+controls.identifier = c(1:5,7:9,11:29,31:40,42:48),
+time.predictors.prior = c(1981:1985),
+time.optimize.ssr = c(1981:2003),
+time.plot = 1981:2003
+)
+
+synth.out.full <- synth(dataprep.out.full)
+
+## preferred specification
+path.plot(dataprep.res = dataprep.out,synth.res = synth.out,Ylab = c("log of traffic fatalities per capita"),
+Xlab = c("year"),
+Ylim = c(-2,-1),
+Main = "Mean specifciation")
+
+## specification #2
+path.plot(dataprep.res = dataprep.out.med,synth.res = synth.out.med,Ylab = c("log of traffic fatalities per capita"),
+Xlab = c("year"),
+Ylim = c(-2,-1),
+Main = "Median specifciation")
+
+## specification #3
+path.plot(dataprep.res = dataprep.out.full,synth.res = synth.out.full,Ylab = c("log of traffic fatalities per capita"),
+Xlab = c("year"),
+Ylim = c(-2,-1),
+Main = "Full time horizon optimization")
+
+```
+
+
+```{r 1c placebos}
+
+
+
+
 
 
 ```
 
 
-# 1c - Graphical interpretation and treatment
+```{r 1c MSPE}
 
-```{r 1c}
+
+
+
+
 
 
 ```
 
 # 1d - Comparison to fixed effects
 
+In the fixed effects analysis, we found an average treatment effect of -9% as a result of the primary law. On the other hand, the approach relying on synthetic controls found an everage treatment effect of X%. 
 
-```{r 1d}
-
-
-```
 
