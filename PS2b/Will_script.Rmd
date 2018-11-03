@@ -72,7 +72,7 @@ result <- rm_treat %>%
 
 result <- result[result$primary == 0,c(1,2,15,16)]
 result <- result[result$year != 2003,]
-print(result[order(result$fatal_pc),])
+kable(round(result[order(result$fatal_pc),],3))
 
 rm_treat <- dat[dat$control != 1,]
 
@@ -83,9 +83,10 @@ Georgia (which is state number 9) appears to be the closest state to our treatme
 ```{r 1a part 2 cont}
 rm_comp <- dat[dat$state %in% c(9,99),]
 
-rm_comp %>% group_by(primary, secondary,state) %>%
+store <- rm_comp %>% group_by(primary, secondary,state) %>%
              summarise_all(funs(mean))
 
+kable(round(store,3))
 
 ```
 
@@ -114,7 +115,7 @@ Drawbacks of the method:
 data <- dat[dat$control != 1,]
 data$state <- as.numeric(data$state)
 
-dataprep.out<-
+dataprep.out.mean<-
 dataprep(
 foo = data,
 predictors = c("college", "beer","unemploy","totalvmt","precip","snow32"),
@@ -125,11 +126,11 @@ time.variable = "year",
 treatment.identifier = 99,
 controls.identifier = c(1:5,7:9,11:29,31:40,42:48),
 time.predictors.prior = c(1981:1985),
-time.optimize.ssr = c(1981:1986),
+time.optimize.ssr = c(1981:1985),
 time.plot = 1981:2003
 )
 
-synth.out <- synth(dataprep.out)
+synth.out.mean <- synth(dataprep.out.mean)
 
 ```
 
@@ -176,7 +177,7 @@ time.plot = 1981:2003
 synth.out.full <- synth(dataprep.out.full)
 
 ## preferred specification
-path.plot(dataprep.res = dataprep.out,synth.res = synth.out,Ylab = c("log of traffic fatalities per capita"),
+path.plot(dataprep.res = dataprep.out.mean,synth.res = synth.out.mean,Ylab = c("log of traffic fatalities per capita"),
 Xlab = c("year"),
 Ylim = c(-2,-1),
 Main = "Mean specifciation")
@@ -196,28 +197,66 @@ Main = "Full time horizon optimization")
 ```
 
 
-```{r 1c placebos}
+```{r 1c placebos, echo=T, results='hide'}
+controls <- c(2:5,7:9,11:29,31:40,42:48)
+gaps <- as.data.frame(matrix(NA,nrow = length(1981:2003),ncol = length(controls))) %>% set_colnames(controls)
+for(c in controls){
+  newcontrols <- c(controls[-which(controls==c)],99)
+  synthdat <- dataprep(foo = data, 
+                     predictors = c("college", "beer","unemploy","totalvmt","precip","snow32"),
+                     predictors.op = "mean",
+                     dependent = "fatal_pc",
+                     unit.variable = "state",
+                     time.variable = "year",
+                     treatment.identifier = c,
+                     controls.identifier = newcontrols,
+                     time.predictors.prior = c(1981:1985),
+                     time.optimize.ssr = c(1981:1985),
+                     time.plot = 1981:2003)
+  synth.out <- invisible(synth(synthdat))
+  gaps[1:length(1981:2003),which(controls==c)] <- synthdat$Y1plot - (synthdat$Y0plot %*% synth.out$solution.w)
+}
 
+```
+```{r}
+gaps.plot(synth.res = synth.out.mean, dataprep.res = dataprep.out.mean, Xlab = "year", Ylab = "log-fatalities per capita", Main = c("Gaps: Treated - Synthetic Control"), Ylim = c(-0.6,0.7))
+lines(c(1985,1985),c(-5,5), lty = 'dotted', col = 'grey10')
 
-
-
-
-
+for(c in 1:ncol(gaps)){
+  lines(1981:2003,gaps[,c], col = 'grey')
+}
+TUgap <- dataprep.out.mean$Y1plot - (dataprep.out.mean$Y0plot %*% synth.out.mean$solution.w)
+lines(1981:2003,TUgap, lwd = 3)
+legend('top', legend=c("TU","Placebos"), horiz = T,col = c(1,"grey"), lty = c(1,1), lwd = c(3,1))
 ```
 
 
+I do not conclude that the treatment was significant as it does not appear that it is significantly different from other placebo tests.
+
 ```{r 1c MSPE}
+MSPEpp <- data.frame(Post_Pre_MSPE_ratio = rep(NA,length(controls)+1)) %>% 
+  set_rownames(c(controls,99))
+for(i in 1:(nrow(MSPEpp)-1)){
+    MSPEpp[i,1] <- mean(gaps[6:23,i]^2, na.rm = T)/mean(gaps[1:5,i]^2, na.rm = T)
+}
 
+MSPEpp[nrow(MSPEpp),1] <- mean(TUgap[6:23]^2, na.rm = T)/mean(TUgap[1:5]^2, na.rm = T)
+hist(MSPEpp$Post_Pre_MSPE_ratio, breaks = 100, xlab = "post/pre-intervention MSPE")
 
-
-
-
-
-
+kable(round(MSPEpp,2))
 ```
 
 # 1d - Comparison to fixed effects
+```{r 1d}
+conv <- exp(dataprep.out.mean$Y1plot)
+mean(conv)
 
-In the fixed effects analysis, we found an average treatment effect of -9% as a result of the primary law. On the other hand, the approach relying on synthetic controls found an everage treatment effect of X%. 
+conv2 <- exp(dataprep.out.mean$Y0plot %*% synth.out.mean$solution.w)
+mean(conv2)
+      
+```
+
+
+In the fixed effects analysis, we found an average treatment effect of -9% as a result of the primary law. On the other hand, the approach relying on synthetic controls found an everage treatment effect of -8%. We calculate this by first taking the average gap in the post period and find that the law reduced fatalities by 0.017 per capita. Dividing that by the synthetic control average, that is a -8% reduction in fatalities. 
 
 
