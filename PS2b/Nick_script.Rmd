@@ -24,7 +24,7 @@ theme_plot <- theme(
 ```
 
 Import Data
-
+Note: Given that the original traffic datasets have population expressed in thousands and total vehicle miles traveled expressed in millions, so the proper adjustements were made to each of these variables to get them in absolute terms.
 ```{r}
 setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS2b")
 #setwd("C:\\Users\\will-\\Desktop\\are213\\PS1b")
@@ -38,7 +38,8 @@ var.labs[15] <- "Vehicle Miles Traveled (VMT) per capita"
 dat$lfatalPC <- log(dat$fatalities/(dat$population*1000))
 var.labs[16] <- "log-fatalities per capita"
 
-snames <- data.frame(state = c(attributes(dat)$label.table$state_number,99), slab = c(names(attributes(dat)$label.table$state_number),"TU"))
+snames <- data.frame(state = c(attributes(dat)$label.table$state_number,99), 
+                     slab = c(names(attributes(dat)$label.table$state_number),"TU"))
 dat <- merge(dat,snames)
 rm(snames)
 dat$slab <- as.character(dat$slab)
@@ -49,33 +50,41 @@ library(Synth)
 ```
 
 # 1a - Aggregate treatment analysis
+We excluded the 4 states (CT-6,IA-10,NM-30,TX-41) that comprise TU from controls and NJ (29) and NY (32) which each had seatbelt laws passed during the pre-intervention period of TU
 ```{r 1a i table}
-TUpre <- dat %>% filter(state == 99 & primary == 0) %>% summarise(mean1 = mean(lfatalPC)) %>% as.numeric() %>% round(3)
+TUpre <- dat %>% filter(state == 99 & primary == 0) %>% summarise(mean1 = mean(lfatalPC)) %>% 
+  as.numeric() %>% round(3)
 
-#Exclude the 4 states (CT-6,IA-10,NM-30,TX-41) that comprise TU from controls and NJ (29) and NY (32) which each had seatbelt laws passed during the pre-intervention period of TU
 controls <- c(1:5,7:9,11:28,31,33:40,42:48)
 
-ALLpre <- dat %>% filter(state %in% controls & primary == 0) %>% summarise(mean1 = mean(lfatalPC)) %>% as.numeric() %>% round(3)
+ALLpre <- dat %>% filter(state %in% controls & year <= 1985) %>% 
+  summarise(mean1 = mean(lfatalPC)) %>% as.numeric() %>% round(3)
+```
 
-kable(data.frame(Pre_TU = TUpre, Pre_ALLcontrols = ALLpre), caption = "Average log-fatalities for the TU state and all the control states in the pre-primary seatbelt law period")
+```{r, echo = F}
+kable(data.frame(Pre_TU = TUpre, Pre_ALLcontrols = ALLpre), 
+      caption = "Average log-fatalities for the TU state and all the control states in the pre-primary seatbelt law period")
 ```
 
 ```{r 1a i graph, fig.height=4}
 pre <- dat[dat$year %in% dat$year[which(dat$state==99 & dat$primary==0)],]
-cavgpre <- pre %>% filter(state %in% controls) %>% group_by(year) %>% summarise(meanf = mean(lfatalPC))
+cavgpre <- pre %>% filter(state %in% controls) %>% group_by(year) %>% 
+  summarise(meanf = mean(lfatalPC))
 
-plot(pre$year[pre$state==99],pre$lfatalPC[pre$state==99], ylab = "log-fatalities per capita", xlab = "", type = 'b', main = "log-Fatalities per capita in Pre-Primary Seatbelt Law Period", ylim = c(-8.8,-7.8))
-lines(cavgpre$year,cavgpre$meanf, type = 'b', col = 3)
-legend('top', legend = c("TU","Avg Controls"), lty = 1, col = c(1,3), horiz = T)
+plot(pre$year[pre$state==99],pre$lfatalPC[pre$state==99], ylab = "log-fatalities per capita", 
+     xlab = "", type = 'b', main = "log-Fatalities per capita in Pre-Primary Seatbelt Law Period", 
+     ylim = c(-8.8,-7.8))
+lines(cavgpre$year,cavgpre$meanf, type = 'b', col = 3, lty = 'dashed')
+legend('top', legend = c("TU","Avg Controls"), lty = c(1,2), col = c(1,3), horiz = T)
 ```
 
-As seen in the graph above, we can see that there were on average fewer traffic fatalities in the control states during the pre-intervention period for the aggregate "treatment" state TU from 1981 - 1985.  Averged over these 5 years, the treatment state TU had roughly `r round(TUpre - ALLpre,2)` more log-traffic fatalities per capita and 7.2e-05 more (nonlog)-traffic fatalities per capita compared to the rest of the control states.  This suggests that the states the received the primary seatbelt laws (the ones that make up TU) in 1985 were good candidates for such a law given their above-average rate of traffic fatalities.  
+As seen in the graph above, we can see that there were on average fewer traffic fatalities in the control states during the pre-intervention period for the aggregate "treatment" state TU from 1981 - 1985.  Averged over these 5 years, the treatment state TU had roughly `r round(TUpre - ALLpre,2)` more log-traffic fatalities per capita compared to the rest of the control states.  This suggests that the states the received the primary seatbelt laws (the ones that make up TU) in 1985 were good candidates for such a law given their above-average rate of traffic fatalities. Also, we see that there was a significantly different pre-period trend that we would worry about when running our econometric analysis, and which supports the idea to apply synthetic controls as a way to detect treatment effect.
 
 ```{r 1a ii depvar}
 pre1 <- pre[pre$year==1985,]
 anom85 <- pre1$lfatalPC[pre1$state==99]-pre1$lfatalPC[pre1$state %in% controls]
 ```
-```{r, echo = F, fig.height=4}
+```{r, echo = F, fig.height=7}
 plot(anom85, xlab = "State Index", ylab = "log-fatalities per capita"
      , main = "1985 Difference in log-fatalities per capita from TU")
 lines(0:length(anom85),rep(0,length(anom85)+1),lty = 'dashed')
@@ -84,6 +93,7 @@ points(which.min(abs(anom85)),anom85[which.min(abs(anom85))], col = 2, pch = 16,
 
 We can see that in 1985 - the year before the intervention in TU - the state most similar to TU in terms of log-fatalities per capita is state number 1 (AL-Alabama).
 \newpage
+
 Comparison of covariates from Alabama to TU during the pre-intervention period.
 
 ```{r 1a ii covariants, fig.height=10.5, fig.width=8.5, echo=F}
@@ -92,30 +102,42 @@ preALTU <- pre %>% filter(state %in% c(1,99))
 par(mfrow=c(4,3))
 par(mar=c(2,2,2,2))
 for(i in c(3:9,11:15)){
-  plot(preALTU$year[preALTU$state==99],preALTU[preALTU$state==99,i], ylab = "", xlab = "", type = 'b', main = var.labs[i], ylim = c(0.95*min(preALTU[,i]),1.1*max(preALTU[,i])), cex.main = 0.9)
-lines(preALTU$year[preALTU$state==99],preALTU[preALTU$state==1,i], type = 'b', col = 3)
-legend('top', legend = c("TU","AL"), lty = 1, col = c(1,3), horiz = T)
+  plot(preALTU$year[preALTU$state==99],preALTU[preALTU$state==99,i], 
+       ylab = "", xlab = "", type = 'b', main = var.labs[i], 
+       ylim = c(0.95*min(preALTU[,i]),1.1*max(preALTU[,i])), cex.main = 0.9)
+lines(preALTU$year[preALTU$state==99],preALTU[preALTU$state==1,i], 
+      type = 'b', col = 3, lty = 'dashed')
+legend('top', legend = c("TU","AL"), lty = c(1,2), col = c(1,3), horiz = T)
 }
 ```
 
-Generally speaking, the covariates for Alabama during the 1981-1985 pre-treatment period for TU are similar in that Alabama also has no primary or secondary seatbelt law and in their rural and interstate speed limits of 55mph. The number of vehicle miles traveled per capita is fairly similar between TU and AL as well, especially in 1984-1985 just before the treatment begins in TU. However, the majority of other covariates are fairly different. For example, TU has a much higher college graduate rate (21-23% vs. 13-16%) during this period, more per capita beer consumption (0.5-0.6 more gallons of ethanol per capita), roughly half the unemployment rate of Alabama, much less average precipitation though much higher average snowfall. Other gross metrics, such as population, total traffic fatalities, and total vehicle miles traveled are more difficult to compare betwee TU and Alabama because they are not scaled by population, though their totals are much different all the same.
+\newpage
+
+The covariates for Alabama during the 1981-1985 pre-treatment period compared to TU are similar in that Alabama also has no primary or secondary seatbelt law and in their rural and interstate speed limits of 55mph. The number of vehicle miles traveled per capita is fairly similar between TU and AL as well, especially in 1984-1985 just before the treatment begins in TU. However, the majority of other covariates are fairly different. For example, TU has a much higher college graduate rate (21-23% vs. 13-16%) during this period, more per capita beer consumption (0.5-0.6 more gallons of ethanol per capita), roughly half the unemployment rate of Alabama, much less average precipitation though much higher average snowfall. Other gross metrics, such as population, total traffic fatalities, and total vehicle miles traveled are more difficult to compare betwee TU and Alabama because they are not scaled by population, though their totals are much different all the same.  Therefore, given all of these differences in covariate values, Alabama may not be the best singular control state to use as a comparison to TU for the efficacy of a primary seatbelt law.
 
 # 1b - Synthetic control method
+The synthetic control method compares aggregated outcomes in a number of different control observations to a measured treatment effect. A synthetic control is formed from a group of potential control units, and is designed by evaluating covariates in a pre-treatment periods, developing weights for each potential control based on its distance from the treated group. Once the weights are formulated using pre-treatment data, The the post-treatment outcome are computed for the aggregated control unit to synthesize a counterfactual to the treated unit. Finally, the treatment effect is calculated by comparing the treated unit to the synthetic control unit in the post period.
+
 The method of using synthetic controls, as introduced by Abadie et al. in 2010, is advantageous because it addresses two large issues facing diff-in-diffs, other differencing methods, and matching. These are the fact that oftentimes choosing control units, as in many diff-in-diffs studies, can be seemingly arbitrary, with a cursory analysis of similarities between treatment and control units yielding a subset of controls that may have been entirely different if a different researcher had made the decisions on controls. The choice of these controls, however, does still bear significant influence on the results, and therefore the arbitrary decision-making process potentially plays a significant role in conclusions being made from the study.  Synthetic controls on the other hand, takes advantage of all the available control units, using them to create a weighted single "synthetic" control unit to compare to the treatment based on the similarities of all available control units' covariate values to the treatment unit. Additionally, the synthetic controls method rectifies the issue of dubious standard errors facing other methods given the fact that panel data can oftentimes have only a few number of observations for each unit over time, meaning the effective n of each unit is too small to calculate a reasonable variance or standard errors and there is no good representation of unit-by-time specific shocks. It does so by utilizing the multitude of available control units by constructing "placebo" estimates for untreated units, maing the estimation of estimator variance more robust.
 
-However, potential drawbacks of the synthetic controls procedure include the fact that it relies on available data for a number of possible control units, uniformly available over the panel. Furthermore, even if there exist such data for a number of controls, it's possible that no combination of them as a synthetic control provide a reasonably good fit to the treated unit characterstics, meaning the researcher much assess as to whether the synthetic control is reasonable for the given treated unit. Similarly, if the control units being used are very different from one another in a geographic or regional sense, it may be difficult to avoid interpolation bias introduced from interpolating across regions with very different traits (Abadie et al. 2010).
+Other benefits:
+- Transparency - since a synthetic control is a "weighted average of the available control units" the contributions and similarities of each control unit is made transparent.
+
+- In a quasi-experiment, synthetic controls allows for the empiricist to limit bias in selection of controls by chosing them based on how closely they resemble treated units rather than based on arbitrary characteristics. (i.e. its more rigorous and less ad-hoc)
+
+However, potential drawbacks of the synthetic controls procedure include the fact that it relies on available data for a number of possible control units, uniformly available over the panel. Furthermore, even if there exists such data for a number of controls, it's possible that no combination of them as a synthetic control provide a reasonably good fit to the treated unit characterstics, meaning the researcher must assess as to whether the synthetic control is reasonable for the given treated unit. Similarly, if the control units being used are very different from one another in a geographic or regional sense, it may be difficult to avoid interpolation bias introduced from interpolating across regions with very different traits (Abadie et al. 2010). Also, the method assumes outcomes post-treatment in the controls are not impacted by treatment in the treatment unit,or there is no spillover effects. This may not be a reasonable assumption, but Abadie talks through how to test the treatment effect assuming one of the control units had actually been treated, and contends, in his 2010 paper, that this proves the treatment effect is signifcant. Furthermore, the method tends to be fairly computationally intensive given its optimization algorithm for finding a suitable control.
 
 ```{r}
 # Specify column number of dependent variable
 dcol <- which(names(dat) == "lfatalPC")
 # Identify pre-intervention periods
 pre_period <- dat$year[dat$state==99 & dat$primary==0]
-MPSE <- rep(NA,4)
+MSPE <- rep(NA,5)
 ```
 
 The covariate specifications were experimented with to construct the synthetic controls during the pre-intervention period:
 
-Specification 1:
+Specification 1: Using all available covariates for comparison
 ```{r}
 # Specify column numbers of predictors to use
 pcols <- c(3:4,7:12,15)
@@ -133,10 +155,10 @@ synthdat1 <- dataprep(foo = dat,
                      time.plot = yrs,
                      unit.names.variable = "slab")
 synth.out1 <- synth(synthdat1)
-MPSE[1] <- synth.out1$loss.v
+MSPE[1] <- synth.out1$loss.v
 ```
 
-Specification 2:
+Specification 2: Excluding the total vehicle miles traveled in favor of VMT per capita
 ```{r}
 pcols <- c(3:4,8:12,15)
 noquote(c("Covariates used to construct synthetic control:",var.labs[pcols]))
@@ -153,10 +175,10 @@ synthdat2 <- dataprep(foo = dat,
                      time.plot = yrs,
                      unit.names.variable = "slab")
 synth.out2 <- synth(synthdat2)
-MPSE[2] <- synth.out2$loss.v
+MSPE[2] <- synth.out2$loss.v
 ```
 
-Specification 3:
+Specification 3: Excluded all variables except beer consumption, precipitation, snow, vehicle miles per capita, percent college grads, and unemployment rates.
 ```{r}
 pcols <- c(3:4,8,11:12,15)
 noquote(c("Covariates used to construct synthetic control:",var.labs[pcols]))
@@ -173,10 +195,10 @@ synthdat3 <- dataprep(foo = dat,
                      time.plot = yrs,
                      unit.names.variable = "slab")
 synth.out3 <- synth(synthdat3)
-MPSE[3] <- synth.out3$loss.v
+MSPE[3] <- synth.out3$loss.v
 ```
 
-Specification 4:
+Specification 4: Excluding all covariates but college and beer consumption 
 ```{r}
 pcols <- c(3:4)
 noquote(c("Covariates used to construct synthetic control:",var.labs[pcols]))
@@ -193,39 +215,65 @@ synthdat4 <- dataprep(foo = dat,
                      time.plot = yrs,
                      unit.names.variable = "slab")
 synth.out4 <- synth(synthdat4)
-MPSE[4] <- synth.out4$loss.v
+MSPE[4] <- synth.out4$loss.v
+```
+
+Specification 5: Same as specification 3 but using the median of the covariates for comparing between TU and the controls
+```{r}
+pcols <- c(3:4,8,11:12,15)
+noquote(c("Covariates used to construct synthetic control:",var.labs[pcols]))
+# Prepare dataframe for synth function
+synthdat5 <- dataprep(foo = dat, 
+                     predictors = pcols, 
+                     predictors.op = "median",
+                     dependent = dcol, 
+                     unit.variable = "state",
+                     time.variable = "year",
+                     treatment.identifier = 99,
+                     controls.identifier = controls,
+                     time.predictors.prior = pre_period,
+                     time.optimize.ssr = pre_period,
+                     time.plot = yrs,
+                     unit.names.variable = "slab")
+synth.out5 <- synth(synthdat5)
+MSPE[5] <- synth.out5$loss.v
 ```
 
 ```{r}
-kable(data.frame(Specification = 1:4, MPSE = MPSE))
+kable(data.frame(Specification = 1:5, MSPE = MSPE))
 ```
 
-Ultimately, the specification 3 set of covariates was used for the final synthetic control construction due to its having the smallest MPSE during the pre-intervention period compared to other sets of covariates specifications. Specification 3 excludes population, since it was not scaled by area, and the gross population numbers do not necessarily convey any useful information for selecting control units. Also excluded were gross number of fatalities and totalvmt, which makes sense because they are also gross values and are not scaled to a per capita basis. The rural and urban speed limits are also excluded since they both are unvarying at 55mph across the country for the entire pre-intervention period. We can see that specification 4, which only used college education and beer consumption as its covariates had a much higher MPSE than the others, as expected.
+Ultimately, the specification 3 set of covariates was used for the final synthetic control construction due to its having the smallest MSPE during the pre-intervention period compared to other sets of covariates specifications. Specification 3 excludes population, since it was not scaled by area, and the gross population numbers do not necessarily convey any useful information for selecting control units. Also excluded were gross number of fatalities and totalvmt, which makes sense because they are also gross values and are not scaled to a per capita basis. The rural and urban speed limits are also excluded since they both are unvarying at 55mph across the country for the entire pre-intervention period. We can see that specification 4, which only used college education and beer consumption as its covariates had a much higher MSPE than the others, as expected.
 
-Generally speaking, the algorithm finds a synthetic control treatment and has reported the mean squared prediction error (MPSE) during the pre-intervention period as well as the weights applied to each covariate (solution.v) and to each control unit state (solution.w). Essentially, the command is averaging the pre-intervention period covariate values by each state and then comparing them to those pre-intervention averages of the treatment unit to determine the similarities of each state to each covariate. Then, it applies an optimization algorithm to test different weighting schemes for both the covariate and control unit-specific weights in order to construct a synthetic control unit that is most similar to the treated unit during the pre-intervention period (1981-1985), as defined by minimized MSPE during that period. 
+Generally speaking, the algorithm finds a synthetic control treatment and has reported the mean squared prediction error (MSPE) during the pre-intervention period as well as the weights applied to each covariate (solution.v) and to each control unit state (solution.w). Essentially, the command is averaging the pre-intervention period covariate values by each state and then comparing them to those pre-intervention averages of the treatment unit to determine the similarities of each state to each covariate. Then, it applies an optimization algorithm to test different weighting schemes for both the covariate and control unit-specific weights in order to construct a synthetic control unit that is most similar to the treated unit during the pre-intervention period (1981-1985), as defined by minimized MSPE during that period. 
 
 # 1c - Graphical interpretation and treatment
 ```{r 1c}
 par(mfrow = c(2,2))
-gaps.plot(synth.res = synth.out1, dataprep.res = synthdat1, Xlab = "", Ylab = "log-fatalities per capita", Main = c("Spec 1 Gap: Actual Treated (TU) - Synthetic TU"))
+gaps.plot(synth.res = synth.out1, dataprep.res = synthdat1, Xlab = "", 
+          Ylab = "log-fatalities per capita", Main = c("Spec 1 Gap"))
 lines(c(1985,1985),c(-0.5,0.5), lty = 'dotted', col = 'grey10')
 
-gaps.plot(synth.res = synth.out2, dataprep.res = synthdat2, Xlab = "", Ylab = "log-fatalities per capita", Main = c("Spec 2 Gap: Actual Treated (TU) - Synthetic TU"))
+gaps.plot(synth.res = synth.out2, dataprep.res = synthdat2, Xlab = "", 
+          Ylab = "log-fatalities per capita", Main = c("Spec 2 Gap"))
 lines(c(1985,1985),c(-0.5,0.5), lty = 'dotted', col = 'grey10')
 
-gaps.plot(synth.res = synth.out3, dataprep.res = synthdat3, Xlab = "", Ylab = "log-fatalities per capita", Main = c("Spec 3 Gap: Actual Treated (TU) - Synthetic TU"))
+gaps.plot(synth.res = synth.out3, dataprep.res = synthdat3, Xlab = "", 
+          Ylab = "log-fatalities per capita", Main = c("Spec 3 Gap"))
 lines(c(1985,1985),c(-0.5,0.5), lty = 'dotted', col = 'grey10')
 
-gaps.plot(synth.res = synth.out4, dataprep.res = synthdat4, Xlab = "", Ylab = "log-fatalities per capita", Main = c("Spec 4 Gap: Actual Treated (TU) - Synthetic TU"))
+gaps.plot(synth.res = synth.out4, dataprep.res = synthdat4, Xlab = "", 
+          Ylab = "log-fatalities per capita", Main = c("Spec 4 Gap"))
 lines(c(1985,1985),c(-0.5,0.5), lty = 'dotted', col = 'grey10')
 ```
-We can see in the plot of gaps between the treated TU and its synthetic control that during this 1981-1985 period the differences are very small in specification 3, which gives us confidence in the synthetic controls goodness of fit.  
+We can see in the plot of gaps between the treated TU and its synthetic control that during this 1981-1985 period the differences are very small in specification 3, which gives us confidence in the synthetic controls goodness of fit for that specification.  Notice in Spec 4 that there is a lot of error given that the control was only constructed using two covariates. Spec 5 was similary but marginally worse than Spec 3.
 
-# "Placebo" state treatments - Kept all years analysis (didn't worry about years in which primary or secondary laws were put into effect)
+"Placebo" state treatments - Kept all years of analysis (didn't worry about years in which primary or secondary laws were put into effect)
 ```{r, echo=T, results='hide'}
 # Run synthetic controls using the chosen specified covariates for all states (placebos)
 controls <- controls[controls!=27]
-gaps <- as.data.frame(matrix(NA,nrow = length(yrs),ncol = length(controls))) %>% set_colnames(controls)
+gaps <- as.data.frame(matrix(NA,nrow = length(yrs),ncol = length(controls))) %>% 
+  set_colnames(controls)
 pcols <- c(3:4,8,11:12,15)
 for(c in controls){
   newcontrols <- c(controls[-which(controls==c)],99)
@@ -241,12 +289,15 @@ for(c in controls){
                      time.plot = dat$year[dat$state==c],
                      unit.names.variable = "slab")
   synth.out <- synth(synthdat)
-  gaps[1:length(dat$year[dat$state==c]),which(controls==c)] <- synthdat$Y1plot - (synthdat$Y0plot %*% synth.out$solution.w)
+  diff <- synthdat$Y1plot - (synthdat$Y0plot %*% synth.out$solution.w)
+  gaps[1:length(dat$year[dat$state==c]),which(controls==c)] <- diff
 }
 ```
 
 ```{r}
-gaps.plot(synth.res = synth.out3, dataprep.res = synthdat3, Xlab = "", Ylab = "log-fatalities per capita", Main = c("Gaps: Treated - Synthetic Control"), Ylim = c(-0.6,0.7))
+gaps.plot(synth.res = synth.out3, dataprep.res = synthdat3, Xlab = "", 
+          Ylab = "log-fatalities per capita", Main = c("Gaps: Treated - Synthetic Control"), 
+          Ylim = c(-0.6,0.7))
 lines(c(1985,1985),c(-5,5), lty = 'dotted', col = 'grey10')
 
 for(c in 1:ncol(gaps)){
@@ -255,13 +306,15 @@ for(c in 1:ncol(gaps)){
 lines(yrs,rep(0,length(unique(dat$year))),lty = 'dashed', lwd = 2)
 TUgap <- synthdat3$Y1plot - (synthdat3$Y0plot %*% synth.out3$solution.w)
 lines(yrs,TUgap, lwd = 3)
-legend('top', legend=c("TU","Placebos","Synthetic Control"), horiz = T,col = c(1,"grey",1), lty = c(1,1,2), lwd = c(3,1,2))
+legend('top', legend=c("TU","Placebos","Synthetic Control"), horiz = T,
+       col = c(1,"grey",1), lty = c(1,1,2), lwd = c(3,1,2))
 ```
 
-We can see that the TU is not well-outsidde the variance of other "placebo" control states relative to their respective synthetic controls. Therefore, it is hard from this plot to condlude that the treatment was significant. However, the control states in this case are not exactly great placebo controls because many of them experienced primary or secondary seatbelt laws at one point or another between 1985-2003, making the "placebo" concept not as substantive since in fact they may actually have been subject to a similar seatbelt law treatment. 
+We can see that the TU is not well-outside the variance of other "placebo" control states relative to their respective synthetic controls. Therefore, it is hard from this plot to conclude that the treatment was significant. However, the control states in this case are not exactly great placebo controls because many of them experienced primary or secondary seatbelt laws at one point or another between 1986-2003, making the "placebo" concept not as substantive since in fact they may actually have been subject to a similar seatbelt law treatment. 
 
 ```{r}
-MSPEpp <- data.frame(Post_Pre_MSPE_ratio = rep(NA,length(controls)+1)) %>% set_rownames(unique(dat$slab[dat$state %in% c(controls,99)]))
+MSPEpp <- data.frame(Post_Pre_MSPE_ratio = rep(NA,length(controls)+1)) %>% 
+  set_rownames(unique(dat$slab[dat$state %in% c(controls,99)]))
 for(i in 1:(nrow(MSPEpp)-1)){
   # Only calculate ratio if there are at least 5 post-intervention years
   if(sum(!is.na(gaps[6:23,i])) >= 5){
@@ -276,32 +329,41 @@ hist(MSPEpp$Post_Pre_MSPE_ratio, breaks = 100, xlab = "post/pre-intervention MSP
 
 From this plot we can see that indeed there is a state in which the post MSPE is much greater (~120x) than the pre-intervention MSPE. However, this state is in fact Florida, and not TU. The TU ratio was only roughly 17 times greater, which is still significant. It turns out that Florida passed a secondary seatbelt law in 1987 - right after the pre-treatment period for TU - which is likely contributing to some of this big difference in pre and post-intervention period MSPEs. The ratios for all states are shown below.
 
-```{r}
+```{r, echo = F}
 kable(round(MSPEpp,2))
 ```
 
-# "Placebo" state treatments - Excluded years in which primary seatbelt laws were passed in other states from analysis (didn't worry about secondary seatbelt laws)
+#"Placebo" state treatments - 
+Excluded years in which primary seatbelt laws were passed in other states from analysis (didn't worry about secondary seatbelt laws)
+
 Therefore, to account for this 'contaminated' control data, which in fact has primary and seatbelt law treatment occurring throughout the study period, we can instead only use the years for each "placebo" control which do not have a primary and/or secondary treatment law in effect, to make them true "placebos". The following is the same process as above, but with state-years with primary seatbelt laws in effect removed.
 
 ```{r}
 par(cex.main = 0.9)
-gaps.plot(synth.res = synth.out3, dataprep.res = synthdat3, Xlab = "", Ylab = "log-fatalities per capita", Main = c("Gaps: (Exclude Placebo State-Years with Primary Seatbelt Law)"), Ylim = c(-0.6,0.7))
+gaps.plot(synth.res = synth.out3, dataprep.res = synthdat3, Xlab = "", 
+          Ylab = "log-fatalities per capita", 
+          Main = c("Gaps: (Exclude Placebo State-Years with Primary Seatbelt Law)"), 
+          Ylim = c(-0.6,0.7))
 lines(c(1985,1985),c(-5,5), lty = 'dotted', col = 'grey10')
 
-gaps_p <- as.data.frame((matrix(NA,nrow = nrow(gaps), ncol = ncol(gaps)))) %>% set_colnames(colnames(gaps))
+gaps_p <- as.data.frame((matrix(NA,nrow = nrow(gaps), ncol = ncol(gaps)))) %>% 
+  set_colnames(colnames(gaps))
 
 for(c in 1:ncol(gaps)){
-  gaps_p[which(yrs %in% dat$year[dat$state==controls[c] & dat$primary==0]),c] <- gaps[which(yrs %in% dat$year[dat$state==controls[c] & dat$primary==0]),c]
+  diff <- gaps[which(yrs %in% dat$year[dat$state==controls[c] & dat$primary==0]),c]
+  gaps_p[which(yrs %in% dat$year[dat$state==controls[c] & dat$primary==0]),c] <- diff
   lines(yrs,gaps_p[,c], col = 'grey')
 }
 lines(yrs,rep(0,length(unique(dat$year))),lty = 'dashed', lwd = 2)
 TUgap <- synthdat3$Y1plot - (synthdat3$Y0plot %*% synth.out3$solution.w)
 lines(yrs,TUgap, lwd = 3)
-legend('top', legend=c("TU","Placebos","Synthetic Control"), horiz = T,col = c(1,"grey",1), lty = c(1,1,2), lwd = c(3,1,2))
+legend('top', legend=c("TU","Placebos","Synthetic Control"), horiz = T,
+       col = c(1,"grey",1), lty = c(1,1,2), lwd = c(3,1,2))
 ```
 
 ```{r}
-MSPEpp <- data.frame(Post_Pre_MSPE_ratio = rep(NA,length(controls)+1)) %>% set_rownames(unique(dat$slab[dat$state %in% c(controls,99)]))
+MSPEpp <- data.frame(Post_Pre_MSPE_ratio = rep(NA,length(controls)+1)) %>% 
+  set_rownames(unique(dat$slab[dat$state %in% c(controls,99)]))
 for(i in 1:(nrow(MSPEpp)-1)){
   # Only calculate ratio if there are at least 5 post-intervention years
   if(sum(!is.na(gaps_p[6:23,i])) >= 5){
@@ -324,24 +386,31 @@ The final experiment worth running is to exclude all state-years that have eithe
 
 ```{r}
 par(cex.main = 0.9)
-gaps.plot(synth.res = synth.out3, dataprep.res = synthdat3, Xlab = "", Ylab = "log-fatalities per capita", Main = c("Gaps: (Exclude Placebo State-Years with Primary or Secondary Seatbelt Law)"), Ylim = c(-0.6,0.7))
+gaps.plot(synth.res = synth.out3, dataprep.res = synthdat3, Xlab = "", 
+          Ylab = "log-fatalities per capita", 
+          Main = c("Gaps: (Exclude Placebo State-Years with Primary or Secondary Seatbelt Law)"), 
+          Ylim = c(-0.6,0.7))
 lines(c(1985,1985),c(-5,5), lty = 'dotted', col = 'grey10')
 
-gaps_ps <- as.data.frame((matrix(NA,nrow = nrow(gaps), ncol = ncol(gaps)))) %>% set_colnames(colnames(gaps))
+gaps_ps <- as.data.frame((matrix(NA,nrow = nrow(gaps), ncol = ncol(gaps)))) %>% 
+  set_colnames(colnames(gaps))
 
 for(c in 1:ncol(gaps)){
-  gaps_ps[which(yrs %in% dat$year[dat$state==controls[c] & dat$primary==0 & dat$secondary==0]),c] <- gaps[which(yrs %in% dat$year[dat$state==controls[c] & dat$primary==0 & dat$secondary==0]),c]
+  diff <- gaps[which(yrs %in% dat$year[dat$state==controls[c] & dat$primary==0 & dat$secondary==0]),c]
+  gaps_ps[which(yrs %in% dat$year[dat$state==controls[c] & dat$primary==0 & dat$secondary==0]),c] <- diff
   lines(yrs,gaps_ps[,c], col = 'grey')
 }
 lines(yrs,rep(0,length(unique(dat$year))),lty = 'dashed', lwd = 2)
 TUgap <- synthdat3$Y1plot - (synthdat3$Y0plot %*% synth.out3$solution.w)
 lines(yrs,TUgap, lwd = 3)
-legend('top', legend=c("TU","Placebos","Synthetic Control"), horiz = T,col = c(1,"grey",1), lty = c(1,1,2), lwd = c(3,1,2))
+legend('top', legend=c("TU","Placebos","Synthetic Control"), 
+       horiz = T,col = c(1,"grey",1), lty = c(1,1,2), lwd = c(3,1,2))
 ```
 
 # MSPE post/pre 
 ```{r}
-MSPEpp <- data.frame(Post_Pre_MSPE_ratio = rep(NA,length(controls)+1)) %>% set_rownames(unique(dat$slab[dat$state %in% c(controls,99)]))
+MSPEpp <- data.frame(Post_Pre_MSPE_ratio = rep(NA,length(controls)+1)) %>% 
+  set_rownames(unique(dat$slab[dat$state %in% c(controls,99)]))
 for(i in 1:(nrow(MSPEpp)-1)){
   # Only calculate ratio if there are at least 5 post-intervention years
   if(sum(!is.na(gaps_ps[6:23,i])) >= 5){
@@ -376,10 +445,24 @@ fe_fit <- fixed_eff$fitted.values[dat$state==99]
 ```
 
 ```{r}
-plot(1981:2003,fe_fit, type = 'l', ylim = c(-8.8,-7.9), col = 3, lty = 'dashed', main = "Comparison of FE to Synthetic Controls for TU", xlab = '', ylab = 'log fatalities per-capita', lwd = 2)
+plot(1981:2003,fe_fit, type = 'l', ylim = c(-8.8,-7.9), col = 3, lty = 'dashed', 
+     main = "Comparison of FE to Synthetic Controls for TU", xlab = '', 
+     ylab = 'log fatalities per-capita', lwd = 2)
 lines(1981:2003,synthdat3$Y1plot, lwd = 3)
 lines(1981:2003,synthdat3$Y0plot %*% synth.out3$solution.w, lwd = 2, lty = 'dashed')
-legend('top',legend = c("FE Estimate", "Actual TU", "Synth TU Control "), col = c(3,1,1), lty = c(2,1,2), lwd  =c(2,3,2), horiz = T)
+legend('top',legend = c("FE Estimate", "Actual TU", "Synth TU Control "), 
+       col = c(3,1,1), lty = c(2,1,2), lwd  =c(2,3,2), horiz = T)
 ```
 
-The FE and synthetic controls estimators look very similar in fact with no systematic differences between them.  The FE estimates during the control period are slightly lower than the synthetic control estimates during that time, which we know are very close to the actual values for TU during 1981-1985. This suggestes that the FE estimator is slightly biased low for those 5 years, which could be due to the use of the quadratic time term, which has a negative coefficient, which may be absorbing some of the effects of secondary seatbelt laws coming into effect over time in many states over the panel, and therefore downweighting estimates in states merely due to passing time rather than due to the enacting of those laws in the FE model.
+```{r}
+# Pre-treatment mean
+conv <- exp(synthdat3$Y1plot)
+# Post-treatment mean
+conv2 <- exp(synthdat3$Y0plot %*% synth.out3$solution.w)
+# Percent change from pre to post-treatment
+pctchg <- -100*(mean(conv2) - mean(conv))/mean(conv)
+```
+
+In the fixed effects analysis, we found an average treatment effect of -9.2618% as a result of the primary law. On the other hand, the approach relying on synthetic controls found an everage treatment effect of `r round(pctchg,4)`%, which is almost identical. We calculate this by first taking the average gap in the post period and divide that by the synthetic control average.
+
+This is reflected in the above graph, the FE and synthetic controls estimators look very similar in fact with no systematic differences between them.  The FE estimates during the control period are slightly lower than the synthetic control estimates during that time, which we know are very close to the actual values for TU during 1981-1985. This suggestes that the FE estimator is slightly biased low for those 5 years, which could be due to the use of the quadratic time term, which has a negative coefficient, which may be absorbing some of the effects of secondary seatbelt laws coming into effect over time in many states over the panel, and therefore downweighting estimates in states merely due to passing time rather than due to the enacting of those laws in the FE model.
