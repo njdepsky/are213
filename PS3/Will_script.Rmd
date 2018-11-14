@@ -1,0 +1,77 @@
+---
+title: "ARE 213 Problem Set 3"
+author: "Nick Depsky, Will Gorman, Peter Worley"
+date: "November 30, 2018"
+output:
+  pdf_document: default
+---
+
+```{r, include = F}
+rm(list = ls())
+library(pacman)
+p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer", "glmnet","splines")
+theme_plot <- theme(
+  legend.position = "right",
+  panel.background = element_rect(fill = NA),
+  panel.border = element_rect(fill = NA, color = "grey75"),
+  axis.ticks = element_line(color = "grey85"),
+  panel.grid.major = element_line(color = "grey95", size = 0.2),
+  panel.grid.minor = element_line(color = "grey95", size = 0.2),
+  legend.key = element_blank(),
+  legend.title = element_blank(),
+  legend.spacing.x = unit(0.3, "cm"))
+```
+
+Import Data
+
+```{r}
+setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS2b")
+#setwd("C:\\Users\\will-\\Desktop\\are213\\PS1b")
+#setwd("C:\\Users\\Will\\Desktop\\are213\\PS2b")
+
+
+```
+
+# 1a - tract housing analysis
+```{r OLS a}
+
+```
+
+# 1b - treatment vs. comparison
+```{r controls}
+
+```
+
+# 2a - HRS and regression discontinuity
+```{r RD}
+
+```
+
+# 2b - histogram
+```{r histogram}
+
+```
+
+# 3a - 2SLS
+```{r rd 2sls}
+
+```
+
+# 3b - graph results
+```{r graphing}
+
+```
+
+# 3c - graph results #2
+```{r graphing 2}
+
+```
+
+# 4 - More 2SLS
+```{r graphing 2}
+
+```
+
+# 5 - Summary
+
+
