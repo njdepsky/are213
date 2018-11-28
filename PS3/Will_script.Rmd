@@ -9,7 +9,7 @@ output:
 ```{r, include = F}
 rm(list = ls())
 library(pacman)
-p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer", "glmnet","splines")
+p_load("dplyr","magrittr","knitr","ggplot2", "stargazer","readstata13","sandwich","lfe")
 theme_plot <- theme(
   legend.position = "right",
   panel.background = element_rect(fill = NA),
@@ -25,17 +25,69 @@ theme_plot <- theme(
 Import Data
 
 ```{r}
-setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS2b")
+#setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS2b")
 #setwd("C:\\Users\\will-\\Desktop\\are213\\PS1b")
-#setwd("C:\\Users\\Will\\Desktop\\are213\\PS2b")
+setwd("C:\\Users\\Will\\Desktop\\are213\\PS3")
 
+site_covariates <- read.dta("sitecovariates.dta")
+all_sites <- read.dta13("allsites.dta")
+all_covariates <- read.dta("allcovariates.dta")
+mile_data <- read.dta("2miledata.dta")
 
 ```
 
 # 1a - tract housing analysis
-```{r OLS a}
-
+```{r OLS 1}
+ols1 <- felm(lnmdvalhs0 ~ npl2000 + lnmeanhs8, data=all_sites) 
+summary(ols1, robust=T)
 ```
+
+```{r OLS 2}
+ols2 <- felm(lnmdvalhs0 ~ npl2000 + lnmeanhs8 + firestoveheat80 + noaircond80 +
+               nofullkitchen80 + zerofullbath80 + bedrms0_80occ + bedrms1_80occ + 
+               bedrms2_80occ + bedrms3_80occ +bedrms4_80occ  + blt0_1yrs80occ +
+               blt2_5yrs80occ +blt6_10yrs80occ +blt10_20yrs80occ +blt20_30yrs80occ +
+               blt30_40yrs80occ +detach80occ+attach80occ, data=all_sites) 
+summary(ols2, robust=T)
+```
+
+```{r OLS 3}
+ols3 <- felm(lnmdvalhs0 ~ npl2000 + lnmeanhs8 + firestoveheat80 + noaircond80 +
+               nofullkitchen80 + zerofullbath80 + bedrms0_80occ + bedrms1_80occ + 
+               bedrms2_80occ + bedrms3_80occ +bedrms4_80occ  + blt0_1yrs80occ +
+               blt2_5yrs80occ +blt6_10yrs80occ +blt10_20yrs80occ +blt20_30yrs80occ +
+               blt30_40yrs80occ +detach80occ+attach80occ+pop_den8+shrblk8+
+               shrhsp8+child8+old8+shrfor8+ffh8+smhse8+hsdrop8+no_hs_diploma8+
+               ba_or_better8+unemprt8+povrat8+welfare8+avhhin8+tothsun8+ownocc8, data=all_sites) 
+summary(ols3, robust=T)
+```
+
+```{r OLS 4}
+ols4 <- felm(lnmdvalhs0 ~ npl2000 + lnmeanhs8 + firestoveheat80 + noaircond80 +
+               nofullkitchen80 + zerofullbath80 + bedrms0_80occ + bedrms1_80occ + 
+               bedrms2_80occ + bedrms3_80occ +bedrms4_80occ  + blt0_1yrs80occ +
+               blt2_5yrs80occ +blt6_10yrs80occ +blt10_20yrs80occ +blt20_30yrs80occ +
+               blt30_40yrs80occ +detach80occ+attach80occ+pop_den8+shrblk8+
+               shrhsp8+child8+old8+shrfor8+ffh8+smhse8+hsdrop8+no_hs_diploma8+
+               ba_or_better8+unemprt8+povrat8+welfare8+avhhin8+tothsun8+
+               ownocc8 | statefips, data=all_sites) 
+summary(ols4, robust=T)
+```
+
+The coefficient for NPL status is significant and positive in all of the regressions. Since all of the coefficients for NPL are positive, it suggests this designation has an unambiguously positive correlation with housing value. The magnitude of the coefficient on NPL term decreases notably as the additional demographic and economic variables are added to the regression which suggests that there are other terms that might be affecting the home prices once controlled for.
+
+
+In the first three regressions, we have to make the assumptions associated with a selection on observables research design. 
+
+The coefficient will be unbiased if the following assumptions are met:
+- residuals are mean zero
+- residuals are homoskedastic with finite variance
+- residuals are uncorrelated with NPL2000
+
+We can imagine a selection/sorting bias arising from the demographic and economic control variables, since some of these variables may be dependent on higher levels of pollution that would enable a tract to be included in the NPL. But the positive value of these coefficients does not match our expectation for what this coefficient should be, so we think it is likely there is omitted variable bias, and NPL2000 is correlated with unobserved variables.
+
+The fixed effect design, on the other hand, does not have to rely on the selection of observables assumption but rather that the the observables are individual specific effects are not correlated with the error term and that the observeables are not correlated with the individual specific effects.
+
 
 # 1b - treatment vs. comparison
 ```{r controls}
