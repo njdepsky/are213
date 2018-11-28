@@ -9,7 +9,7 @@ output:
 ```{r, include = F}
 rm(list = ls())
 library(pacman)
-p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer", "glmnet","splines")
+p_load("foreign","dplyr","magrittr","knitr","ggplot2", "corrplot", "stargazer", "glmnet","splines","readstata13","lmtest","sandwich", "lfe")
 theme_plot <- theme(
   legend.position = "right",
   panel.background = element_rect(fill = NA),
@@ -25,51 +25,168 @@ theme_plot <- theme(
 Import Data
 
 ```{r}
-setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS2b")
-#setwd("C:\\Users\\will-\\Desktop\\are213\\PS1b")
-#setwd("C:\\Users\\Will\\Desktop\\are213\\PS2b")
-
-
+setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS3")
+alls <- read.dta13("allsites.dta")
+allc <- read.dta("allcovariates.dta")
+sitec <- read.dta("sitecovariates.dta")
+tmd <- read.dta("2miledata.dta")
 ```
 
-# 1a - tract housing analysis
+# 1a - Tract housing analysis with robust standard error regressions
+Outcome Variable: Median housing price in 2000
+Control Variables: NPL site in tract in 2000, mean housing price in 1980
 ```{r OLS a}
-
+vars <- cbind(names(alls),attributes(alls)$var.labels) %>% as.data.frame()
+lmobj <- lm(lnmdvalhs0 ~ npl2000 + lnmeanhs8, data = alls)
+lma1 <- coeftest(lmobj, vcov. = vcovHC(lmobj, "HC1"))
+lma1
 ```
+
+Outcome Variable: Median housing price in 2000
+Control Variables: NPL site in tract in 2000, mean housing price in 1980 and various housing characteristics
+```{r OLS a}
+alls.filt <- alls[,c(4,20:44)]
+lmobj <- lm(lnmdvalhs0 ~., data = alls.filt)
+lma2 <- coeftest(lmobj, vcov. = vcovHC(lmobj, "HC1"))
+lma2
+```
+
+Outcome Variable: Median housing price in 2000
+Control Variables: NPL site in tract in 2000, mean housing price in 1980 and various housing and demographic characteristics
+```{r OLS a}
+alls.filt <- alls[,c(4:44)]
+lmobj <- lm(lnmdvalhs0 ~., data = alls.filt)
+lma3 <- coeftest(lmobj, vcov. = vcovHC(lmobj, "HC1"))
+lma3
+```
+
+Outcome Variable: Median housing price in 2000
+Control Variables: NPL site in tract in 2000, mean housing price in 1980 and various housing and demographic characteristics and state fixed effects (exlcuded variables that returned errors in fixed effects treatment bedrms5_80occ, blt40_yrs80occ, percent mobile home single family housing 1980)
+```{r OLS a}
+lmobj <- felm(as.formula(paste("lnmdvalhs0 ~",paste(names(alls[c(4:30,32:37,39:40,42:44)]), collapse = "+"),"| statefips")), alls)
+lma4 <- coeftest(lmobj, vcov. = vcovHC(lmobj, "HC1"))
+lma4
+```
+From the above regressions we can see that before we include state-level fixed effects, there are some housing and demographic variables that do not look to be statistically significant. However, in the last regression where we controlled for state fixed effects all of the variables included (housing and demographic) look to be significant. This suggests that housing values are dependent on a hugely wide array of controlling factors and that one should include all the data available (in this case all covariates) in order to arrive at unbiased estimates of the NLP 2000 coefficient (to avoid omitted variables bias).
 
 # 1b - treatment vs. comparison
 ```{r controls}
-
+allc.vars <- attributes(allc)$var.labels
+ss.allc <- allc %>% group_by(npl2000) %>% summarise_all(mean, na.rm=T) %>% t() %>% round(3) 
+ss.allcA <- cbind(c("NPL Before 2000",allc.vars[-2]),ss.allc) %>% as.data.frame() %>% set_colnames(c("Variable","Control","Treated")) 
+kable(ss.allcA, caption = "Mean Values of Covariates for tracts with an NPL site in 2000 (treated) and not (control)")
 ```
+
+```{r}
+sitec.vars <- attributes(sitec)$var.labels
+ss.sitec <- sitec %>% group_by(hrs_82 > 28.5) %>% summarise_all(mean, na.rm=T) %>% t() %>% round(3) 
+ss.sitecB <- cbind(c("HRS test result of 28.5 or greater before 1982",sitec.vars),ss.sitec) %>% as.data.frame() %>% set_colnames(c("Variable","Control","Treated")) 
+kable(ss.sitecB, caption = "Mean Values of Covariates for tracts that had an HRS test in 1982 with a value greater than 28.5 (treated) and those with a value less than or equal to 28.5 (control)")
+```
+
+```{r}
+ss.sitec1 <- sitec %>% filter(hrs_82 <= 28.5 & hrs_82 > 16.5) %>% summarise_all(mean, na.rm=T) %>% t() %>% round(3) 
+ss.sitec2 <- sitec %>% filter(hrs_82 <= 40.5 & hrs_82 > 28.5) %>% summarise_all(mean, na.rm=T) %>% t() %>% round(3) 
+ss.sitecC <- cbind(sitec.vars,ss.sitec1,ss.sitec2) %>% as.data.frame() %>% set_colnames(c("Variable","HRS 16.5 - 28.5","HRS 28.5 - 40.5")) 
+kable(ss.sitecC, caption = "Mean Values of Covariates for tracts that had an HRS test in 1982 with different value ranges")
+```
+
+We can see from these above comparisons that with the NPL 2000 treatment vs. control comparison the hosuing values in 2000 tend to be 8-10% higher in non-NPL tracts than those with NPLs, as expected.  Also, NPL tracts tend to be less population dense and had families making slightly lower incomes in 1980.  The 1982 HRS test result comparisons are less clear, with incomes and housing prices actually looking to be somewhat higher in tracts that had a high 1982 HRS score compared to those that didn't. Therefore, this suggests that perhaps something occurred to cause this change (hence the need for regression discontinuity).
 
 # 2a - HRS and regression discontinuity
-```{r RD}
+If we consider the HRS score as our running variable for housing prices, we are assuming that housing prices are at least partially determined by this score, specifically by ths score being above/below a given threshold (in this case which causes it to be NPL listed). This score does NOT need to be randomly assigned, but we must assume that it is related to the potential housing price outcomes under treatment (NPL 2000 listing) and not, and that the relationship is smooth without discontinuous jumps between the housing price and HRS score.  If we detect discontinuities in housing prices as the HRS score crosses the 28.5 NPL listing threshold, we can interpret this as the causal effect of the NPL 2000 listing treatment.
 
-```
+i) The fact that the HRS score threshold of 28.5 was selected merely to produce a manageable number of cleanup sites means that the value is that related to other characteristics that might be present in sites and may be related to housing prices, meaing that the NPL listing will likely be the only variable related to this score. If the threshold was determined for some reason like all HRS scores above 28.5 produce visible or noxious signs of pollution, then there may be other reasons that housing prices might respond to this HRS value other than due to the NPL listing.
+
+ii) The fact that none of the officials involved in site identification, testing and HRS scoring knew about the cutoff threshold at the time means that they were not subject to any bias to score sites near the threshold one way or the other. One can imagine a scenario in which someone may want to score a site with an HRS score of say 29 as being 28.5 so that it might be listed if they have a vested interest in that community being aware of an NPL site. Conversely it is reasonable to think that one might not want to subject a community to an NPL listing if it has an HRS score just below the cutoff so as to prevent housing prices from dropping in response to NPL listing.
+
+iii) The fact that the EPA emphasized that the HRS score is an imperfect scoring measure again means that there may be some slight element of randomness to the assignment and that the HRS score does not reflect detectable characteristics of the tracts other than causing them to be NPL listed or not.
 
 # 2b - histogram
 ```{r histogram}
+plot(density(tmd$hrs_82), main = "Kernal Density of HRS 1982 Score")
+abline(v = 28.5, col = "red", lty = "dashed", lwd = 2)
+```
 
+```{r}
+#tmd$yvar <- tmd$lnmdvalhs0_nbr - tmd$lnmeanhs8_nbr
+tmd$yvar <- tmd$mdvalhs0 - tmd$meanhs8
 ```
 
 # 3a - 2SLS
-```{r rd 2sls}
+First Stage Equation:
+${d}_i = {\gamma}_{1}{z}_{i} + {x}_{i}{\gamma}_{2} + {u}_{i}$
 
+Where ${z}_{i}$ is the IV, in this case the binary 0/1 variable for whether a tract has an HRS 1982 score above 28.5 (1) or not (0), and ${d}_{i}$ is the variable we want to instrument for, in this case the treatment variable of the NPL 2000 listing.
+
+```{r rd 2sls}
+tmd$hrsIV <- ifelse(tmd$hrs_82 > 28.5,1,0)
+exX.id <- 1:41
+endX.id <- 45
+y.id <- 52
+IV.id <- 53
+tmd.filt <- tmd[,c(1:41,45,52,53)]
+twosls_1 <- lm(npl2000 ~. -yvar, tmd.filt)
+tmd$d_pred <- twosls_1$fitted.values
+tsls1i <- coeftest(twosls_1, vcov. = vcovHC(twosls_1, "HC1"))
+tsls1i 
 ```
+
+Now the first-stage only using a subset of tracts with an HRS score between 16.5 and 40.5
+```{r rd 2sls}
+tmd.filt2 <- tmd.filt[which(tmd$hrs_82 >= 16.5 & tmd$hrs_82 <= 40.5),]
+twosls_1 <- lm(npl2000 ~. -yvar, tmd.filt2)
+tsls1ii <- coeftest(twosls_1, vcov. = vcovHC(twosls_1, "HC1"))
+tsls1ii
+```
+
+In both instances there looks to be a correlation between the HRS IV and the NPL 2000 listing as expected, though when only looking at moderate HRS scores between 16.5 and 28.5, this relationship is slightly weaker than when considering all tracts.
 
 # 3b - graph results
 ```{r graphing}
-
+plot(tmd$hrs_82, tmd$npl2000, main = "NPL 2000 listing vs. HRS 1982 score", pch = 16, ylab = "NPL 2000 Listing (Yes/No)", xlab = "HRS 1982 Score")
+abline(v = 28.5, lty = 'dashed', col = 2, lwd = 2)
 ```
+
+From this graph we can see that there is clearly a correlation between higher HRS scores in 1982 and having been NPL listed by 2000. However, there isn't a perfect agreement between HRS scores above/below 28.5 and being NPL listed in 2000 or not. However, the fact that there is a correlation suggests that the first assumption needed to use HRS 82 scores as an IV is valid because clearly the covariance between HRS 82 scores and NPL 2000 listing is not equal to zero, or ${Cov({z}_{i},{d}_{i}) \neq 0}$.
 
 # 3c - graph results #2
 ```{r graphing 2}
-
+plot(tmd$hrs_82, tmd$meanhs8, main = "Median Housing Value in 1980 vs. HRS 1982 score", pch = 16, ylab = "Mean 1980 Housing Value ($)", xlab = "HRS 1982 Score")
+abline(lm(tmd$meanhs8~tmd$hrs_82), lty = 'dashed', lwd = 2, col = "blue")
+abline(v = 28.5, lty = 'dashed', col = 2, lwd = 2)
 ```
 
-# 4 - More 2SLS
-```{r graphing 2}
+As expected we can see from this graph that there is a very weak correlation between the HRS score (IV) and the mean housing price in 1980, which means that we can (moderately) confidently assume that housing prices before HRS testing and NPL listing was randomly distributed with respect to the actual level of pollution in a given census tract. This is our exlcusion restriction that we need to hold true to apply IV/2SLS of ${Cov({z}_{i},{\varepsilon}_{i}) = 0}$. However, there is a slight correlation between mean housing prices and the 1982 HRS score, suggestion that in fact it may not be totally exogenous.
 
+# 4 - 2SLS Second Stage
+Second Stage Equation:
+${y}_i = {\beta}_{0} + {\beta}_{1}{\hat d}_{i} + {x}_{i}{\beta}_{2} + {\varepsilon}_{i}$
+
+Where ${y}_{i}$ is the outcome variable, in this case the difference in log housing value between 1980 and 2000, and ${\hat d}_{i}$ are the fitted values adjusted from the first stage for the treatment variable NPL 2000 listing variable, and ${x}_{i}$ are the rest of the exogenous covariates.
+
+The two assumptions we need to hold true for IV and 2SLS are:
+
+i) ${Cov({z}_{i},{d}_{i}) \neq 0}$
+ii) ${Cov({z}_{i},{\varepsilon}_{i}) = 0}$
+
+```{r}
+exX.id <- 1:41
+dhat.id <- 54
+y.id <- 52
+IV.id <- 53
+tmd.filt <- tmd[,c(1:41,52,54)]
+twosls_2 <- lm(yvar ~. , tmd.filt)
+tsls2i <- coeftest(twosls_2, vcov. = vcovHC(twosls_2, "HC1"))
+tsls2i 
+```
+
+Now the first-stage only using a subset of tracts with an HRS score between 16.5 and 40.5
+```{r}
+tmd.filt2 <- tmd.filt[which(tmd$hrs_82 >= 16.5 & tmd$hrs_82 <= 40.5),]
+twosls_2 <- lm(yvar ~. , tmd.filt2)
+tsls2ii <- coeftest(twosls_2, vcov. = vcovHC(twosls_2, "HC1"))
+tsls2ii
 ```
 
 # 5 - Summary
