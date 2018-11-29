@@ -1,7 +1,7 @@
 ---
 title: "ARE 213 Problem Set 3"
 author: "Nick Depsky, Will Gorman, Peter Worley"
-date: "November 30, 2018"
+date: "December 3, 2018"
 output:
   pdf_document: default
 ---
@@ -9,7 +9,7 @@ output:
 ```{r, include = F}
 rm(list = ls())
 library(pacman)
-p_load("dplyr","magrittr","knitr","ggplot2", "stargazer","readstata13","sandwich","lfe")
+p_load("dplyr","magrittr","knitr","ggplot2", "stargazer","readstata13","sandwich","lfe", "foreign", "gridExtra","rdd")
 theme_plot <- theme(
   legend.position = "right",
   panel.background = element_rect(fill = NA),
@@ -76,7 +76,6 @@ summary(ols4, robust=T)
 
 The coefficient for NPL status is significant and positive in all of the regressions. Since all of the coefficients for NPL are positive, it suggests this designation has an unambiguously positive correlation with housing value. The magnitude of the coefficient on NPL term decreases notably as the additional demographic and economic variables are added to the regression which suggests that there are other terms that might be affecting the home prices once controlled for.
 
-
 In the first three regressions, we have to make the assumptions associated with a selection on observables research design. 
 
 The coefficient will be unbiased if the following assumptions are met:
@@ -88,42 +87,277 @@ We can imagine a selection/sorting bias arising from the demographic and economi
 
 The fixed effect design, on the other hand, does not have to rely on the selection of observables assumption but rather that the the observables are individual specific effects are not correlated with the error term and that the observeables are not correlated with the individual specific effects.
 
-
 # 1b - treatment vs. comparison
 ```{r controls}
+all_covariates$npl2000 <- as.character(all_covariates$npl2000)
+covariates <- c("mdvalhs9","mdvalhs0","meanrnt80","firestoveheat80","noaircond80","nofullkitchen80",
+                "zerofullbath80",
+                "bedrms0_80occ","bedrms1_80occ","bedrms2_80occ","bedrms3_80occ","bedrms4_80occ",
+                "blt0_1yrs80occ","blt2_5yrs80occ","blt6_10yrs80occ","blt10_20yrs80occ",
+                "blt20_30yrs80occ","blt30_40yrs80occ","detach80occ","attach80occ","pop_den8",
+                "shrblk8","shrhsp8","child8","shrfor8","ffh8","smhse8","hsdrop8",
+                "no_hs_diploma8","ba_or_better8","unemprt8","povrat8","welfare8","avhhin8",
+                "tothsun8","ownocc8")
+
+
+pl <- list()
+
+for (i in c(1:6)) {
+  
+  pl[[i]] <- ggplot(all_covariates, aes_string(x = i,y=covariates[i], fill="npl2000")) + 
+  geom_boxplot(outlier.shape=NA)  + ylab(label = "value") + xlab(label = covariates[i]) + 
+  theme(axis.text.x=element_blank(),axis.text=element_text(size=8),
+        axis.title=element_text(size=8,face="bold"), 
+        legend.text=element_text(size=8),legend.title=element_text(size=8,face="bold"),
+        legend.position = c(0.8,.8)) + 
+  scale_fill_manual(values = c("cadetblue4", "darkgoldenrod3"),labels = c("no", "yes")) +
+  guides(colour = guide_legend(override.aes = list(size=10))) +
+    scale_y_continuous(limits = quantile(all_covariates[,covariates[i]], c(0.1, 0.9),na.rm=T))
+  
+}
+
+suppressWarnings(grid.arrange(grobs = pl))
+
+pl <- list()
+
+for (i in c(7:12)) {
+  
+  pl[[i-6]] <- ggplot(all_covariates, aes_string(x = i,y=covariates[i], fill="npl2000")) + 
+  geom_boxplot(outlier.shape=NA)  + ylab(label = "value") + xlab(label = covariates[i]) + 
+  theme(axis.text.x=element_blank(),axis.text=element_text(size=8),
+        axis.title=element_text(size=8,face="bold"), 
+        legend.text=element_text(size=8),legend.title=element_text(size=8,face="bold"),
+        legend.position = c(0.8,.8)) + 
+  scale_fill_manual(values = c("cadetblue4", "darkgoldenrod3"),labels = c("no", "yes")) +
+  guides(colour = guide_legend(override.aes = list(size=10))) +
+    scale_y_continuous(limits = quantile(all_covariates[,covariates[i]], c(0.1, 0.9)))
+  
+}
+
+suppressWarnings(grid.arrange(grobs = pl))
+
+pl <- list()
+
+for (i in c(13:18)) {
+  
+  pl[[i-12]] <- ggplot(all_covariates, aes_string(x = i,y=covariates[i], fill="npl2000")) + 
+  geom_boxplot(outlier.shape=NA)  + ylab(label = "value") + xlab(label = covariates[i]) + 
+  theme(axis.text.x=element_blank(),axis.text=element_text(size=8),
+        axis.title=element_text(size=8,face="bold"), 
+        legend.text=element_text(size=8),legend.title=element_text(size=8,face="bold"),
+        legend.position = c(0.8,.8)) + 
+  scale_fill_manual(values = c("cadetblue4", "darkgoldenrod3"),labels = c("no", "yes")) +
+  guides(colour = guide_legend(override.aes = list(size=10))) +
+    scale_y_continuous(limits = quantile(all_covariates[,covariates[i]], c(0.1, 0.9)))
+  
+}
+
+suppressWarnings(grid.arrange(grobs = pl))
+
+pl <- list()
+
+for (i in c(19:24)) {
+  
+  pl[[i-18]] <- ggplot(all_covariates, aes_string(x = i,y=covariates[i], fill="npl2000")) + 
+  geom_boxplot(outlier.shape=NA)  + ylab(label = "value") + xlab(label = covariates[i]) + 
+  theme(axis.text.x=element_blank(),axis.text=element_text(size=8),
+        axis.title=element_text(size=8,face="bold"), 
+        legend.text=element_text(size=8),legend.title=element_text(size=8,face="bold"),
+        legend.position = c(0.8,.8)) + 
+  scale_fill_manual(values = c("cadetblue4", "darkgoldenrod3"),labels = c("no", "yes")) +
+  guides(colour = guide_legend(override.aes = list(size=10))) +
+    scale_y_continuous(limits = quantile(all_covariates[,covariates[i]], c(0.1, 0.9)))
+  
+}
+
+suppressWarnings(grid.arrange(grobs = pl))
+
+pl <- list()
+
+for (i in c(25:30)) {
+  
+  pl[[i-24]] <- ggplot(all_covariates, aes_string(x = i,y=covariates[i], fill="npl2000")) + 
+  geom_boxplot(outlier.shape=NA)  + ylab(label = "value") + xlab(label = covariates[i]) + 
+  theme(axis.text.x=element_blank(),axis.text=element_text(size=8),
+        axis.title=element_text(size=8,face="bold"), 
+        legend.text=element_text(size=8),legend.title=element_text(size=8,face="bold"),
+        legend.position = c(0.8,.8)) + 
+  scale_fill_manual(values = c("cadetblue4", "darkgoldenrod3"),labels = c("no", "yes")) +
+  guides(colour = guide_legend(override.aes = list(size=10))) +
+    scale_y_continuous(limits = quantile(all_covariates[,covariates[i]], c(0.1, 0.9)))
+  
+}
+
+suppressWarnings(grid.arrange(grobs = pl))
+
+pl <- list()
+
+for (i in c(31:36)) {
+  
+  pl[[i-30]] <- ggplot(all_covariates, aes_string(x = i,y=covariates[i], fill="npl2000")) + 
+  geom_boxplot(outlier.shape=NA)  + ylab(label = "value") + xlab(label = covariates[i]) + 
+  theme(axis.text.x=element_blank(),axis.text=element_text(size=8),
+        axis.title=element_text(size=8,face="bold"), 
+        legend.text=element_text(size=8),legend.title=element_text(size=8,face="bold"),
+        legend.position = c(0.8,.8)) + 
+  scale_fill_manual(values = c("cadetblue4", "darkgoldenrod3"),labels = c("no", "yes")) +
+  guides(colour = guide_legend(override.aes = list(size=10))) +
+    scale_y_continuous(limits = quantile(all_covariates[,covariates[i]], c(0.1, 0.9)))
+  
+}
+
+suppressWarnings(grid.arrange(grobs = pl))
 
 ```
+
+```{r controls site}
+site_covariates$above_285 <- ifelse(site_covariates$hrs_82>28.5,1,0)
+
+sitec.vars <- attributes(site_covariates)$var.labels
+
+range_285 <- site_covariates %>% group_by(above_285) %>% summarise_all(mean, na.rm=T) %>% t() %>% 
+  round(3) 
+range_285 <- cbind(c("HRS test result of 28.5 or greater before 1982",sitec.vars),range_285) %>% as.data.frame() %>% set_colnames(c("Variable","Control","Treated")) 
+
+kable(range_285, caption = "Mean Values of Covariates for tracts that had an HRS test in 1982 with a value greater than 28.5 (treated) and those with a value less than or equal to 28.5 (control)")
+
+```
+
+```{r controls site 2}
+site_covariates$above_btwn <- ifelse((site_covariates$hrs_82>28.5) &
+                                    (site_covariates$hrs_82<=40.5),1,
+                                    ifelse((site_covariates$hrs_82<=28.5) &
+                                             (site_covariates$hrs_82>=16.5),2,0))
+
+sitec.vars <- attributes(site_covariates)$var.labels
+
+range_285 <- site_covariates %>% group_by(above_btwn) %>% summarise_all(mean, na.rm=T) %>% t() %>% 
+  round(3) 
+
+range_285 <- cbind(c("HRS test result of 28.5 or greater before 1982",sitec.vars),range_285)%>%
+  as.data.frame() %>% set_colnames(c("Variable","Control","Treated","not included")) 
+
+kable(range_285, caption = "Mean Values of Covariates for tracts that had an HRS test in 1982 with a value greater than 28.5 (treated) and those with a value less than or equal to 28.5 (control)")
+
+```
+
+We expect there to be more difference in the mean of covariates for the allcovariates data set than in the
+sitecovariates data set, which contains only census tracts which have been rated by the HRS system. The small band should show even more covariate similarities.
+
 
 # 2a - HRS and regression discontinuity
-```{r RD}
 
-```
+Regression discontinuity design requires that treatment assignment is "as good as random" at the threshold for treatment. If this holds, then it guarantees that those who just barely received treatment are comparable to those who just barely did not receive treatment, as treatment status is effectively random. Treatment assignment at the threshold can be "as good as random" if there is randomness in the assignment variable and the agents considered individuals cannot perfectly manipulate their treatment status.
+
+Regarding the facts: 
+
+i. This fact limits the randomness of the of the assignment variable since
+the EPA is selecting the number of site that it can manage to treat. This could be a way to manipulate treatment status.
+
+ii. This fact should alleviate concerns that there was gaming around the threshold. We could also check this issue by evaluating bunching on our own. 
+
+iii. This fact could potentially muddy the treatment effect on the home's prices since scores may be off in a way that leads some homes that have really bad pollution not to be treated and homes that don't have that bad of pollution to be treated (when these homes are close to the threshold). 
+
 
 # 2b - histogram
 ```{r histogram}
+DCdensity(
+    runvar      = mile_data$hrs_82,
+    cutpoint    = 28.5,
+    plot        = TRUE,
+    ext.out     = TRUE)
+
+title(xlab = 'Assignment Variable', ylab = 'Density')
+abline(v = 28.5, col = "red", lty = "dashed", lwd = 2)
 
 ```
 
-# 3a - 2SLS
-```{r rd 2sls}
+As we can see in the histogram and in the local linear regression lines,
+there is a limited discontinuity around the threshold density which suggests we should not be concerned about bunching. Furthermore, the p-value is only 0.62 which is further evidence of the insignificance of the discontinuity gap.
 
+# 3a - 2SLS
+First Stage Equation:
+${d}_i = \gamma_{0} + \gamma_{1}*{z}_{i} + \gamma_{2}*{z}_{i}*({X}_{i}-c) + {\gamma}_{3}({X}_{i} - c) + {u}_{i}$
+
+Where ${z}_{i}$ is the IV, in this case the binary 0/1 variable for whether a tract has an HRS 1982 score above 28.5 (1) or not (0), and ${d}_{i}$ is the variable we want to instrument for, in this case the treatment variable of the NPL 2000 listing.
+
+```{r rd 2sls}
+mile_data$hrs_82_indicator <- ifelse(mile_data$hrs_82>=28.5,1,0)
+covariates <- colnames(mile_data)
+remove <- c("mdvalhs9_nbr","mdvalhs9","mdvalhs0","meanhs8",
+            "lnmdvalhs0_nbr","fips","statefips","npl1990")
+covariates <- covariates[! covariates %in% remove]
+mile_data_reg <- mile_data[,covariates]
+mile_data_reg$interaction <- mile_data_reg$hrs_82_indicator * mile_data_reg$hrs_82
+
+reg1 <- lm(npl2000 ~ ., data = mile_data_reg)
+summary(reg1)
+
+```
+
+```{r rd 2sls 2nd}
+mile_data_reg <- mile_data_reg[which(mile_data_reg$hrs_82 >= 16.5 & mile_data_reg$hrs_82 <= 40.5),]
+
+reg2 <- lm(npl2000 ~ ., data = mile_data_reg)
+summary(reg2)
 ```
 
 # 3b - graph results
 ```{r graphing}
+plot(mile_data$hrs_82, mile_data$npl2000, main = "NPL 2000 listing vs. HRS 1982 score", 
+     pch = 16, ylab = "NPL 2000 Listing (Yes/No)", xlab = "HRS 1982 Score")
+abline(v = 28.5, lty = 'dashed', col = 2, lwd = 2)
 
 ```
+
+The graph shows a clear trend of houses with scores less than 28.5 in 1982 being classified as non-priority (NPL value of 0) in 2000, while houses with scores greater than 28.5 in 1982 are on the National Priorities List (NPL value of 1) for clean-up. There are also a few houses with scores lower than 28.5 that are on the NPL in 2000 showing that there is an increase in the number of hazardous waste sites that are legally obligated to be cleaned up since 1982, when their initial scores were assigned under the Superfund program. 
+This shows that there is a fuzzy discontinuity in NPL classification at an HRS score of 28.5 which can be used in a regression discontinuity design study to study the differential effects of hazardous waste material above a certain threshold on housing prices.
 
 # 3c - graph results #2
 ```{r graphing 2}
-
+plot(mile_data$hrs_82, mile_data$lnmeanhs8_nbr, main = "NPL 2000 listing vs. HRS 1982 score", 
+     pch = 16, ylab = "NPL 2000 Listing (Yes/No)", xlab = "HRS 1982 Score")
+abline(v = 28.5, lty = 'dashed', col = 2, lwd = 2)
 ```
+
+There is no clear trend between the HRS score in 1982 and mean housing prices in 1980. This shows that ostensibly there may not be a relationship between the two variables prior to the Superfund program, which is desirable because we would not want a covariate to have a regression discontinuity.
 
 # 4 - More 2SLS
-```{r graphing 2}
+reduced form Equation:
+${y}_i = {\pi}_{0} + {\pi}_{1}{z}_{i} + {\pi}_{2}({x}_{i} - c){z}_{i} + {\pi}_{2}({x}_{i} - c) + {\varepsilon}_{i}$
 
+Where ${y}_{i}$ is the outcome variable, in this case the difference in log housing value between 1980 and 2000, and ${z}_{i}$ is the instrument, and ${x}_{i}$ are the rest of the exogenous covariates.
+
+In the second stage, we regress the outcome variable on predicted values from the first stage (x_star) and all the exogenous variables in the model. 
+
+The 2 standard assumptions for a valid IV are as follows:
+
+1. It is uncorrelated with the disturbance - Cov(instrument, error ) = 0
+2. In the linear projection of the endogenous variable on all exogenous variables and the instrument, the coefficient on the instrument is not equal to 0. This implies that the only way the instrument affects the outcome variable is through the endogenous variable. 
+
+The third condition is a bit redundant, but we will state it anyway. The instrument is not one of the other variables in the original estimation equation.
+
+
+```{r more 2sls}
+covariates <- colnames(mile_data)
+remove <- c("mdvalhs9_nbr","mdvalhs9","mdvalhs0","meanhs8","fips","statefips","npl1990","npl2000")
+covariates <- covariates[! covariates %in% remove]
+mile_data_2sls <- mile_data[,covariates]
+mile_data_2sls$interaction <- mile_data_2sls$hrs_82_indicator * mile_data_2sls$hrs_82
+
+reg1 <- lm(lnmdvalhs0_nbr ~ ., data = mile_data_2sls)
+summary(reg1)
 ```
+
+```{r more 2sls 2nd}
+mile_data_2sls <- mile_data_2sls[which(mile_data_2sls$hrs_82 >= 16.5 & mile_data_2sls$hrs_82 <= 40.5),]
+
+reg2 <- lm(lnmdvalhs0_nbr ~ ., data = mile_data_2sls)
+summary(reg2)
+```
+
+Depending on the regression run above, the coefficient is positive or negative but insignificant. This implies that housing prices in 2000 are insignificantly affected by the NPL 2000 status.
 
 # 5 - Summary
 
-
+We find that a simple OLS regression of housing prices on NPL 2000 status reveals a significant positive relationship when none of the control variables are included in the model. The relationship becomes less significant on adding the housing and demographic characteristics to the equation. However, the positive relationship between housing prices and hazardous pollution levels indicates that there is some omitted variable bias in the model. We try to resolve this using an IV model as suggested, using the HRS score in 1982 as an instrument for NPL 2000 status. This reveals an insignificant relationship between pollution levels indicated by inclusion on the NPL 2000 list and housing prices. The goal of the paper is to test the Market Willingness to Pay (WTP) for hazardous waste site cleanup using housing prices, and the results of the IV approach reveal that home-owners do not yet value the property on the basis of pollution levels or hazardous waste cleanup status. 
