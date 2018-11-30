@@ -94,153 +94,17 @@ The fixed effect design, on the other hand, does not have to rely on the selecti
 
 # 1b - treatment vs. comparison
 ```{r controls}
-all_covariates$npl2000 <- as.character(all_covariates$npl2000)
-covariates <- c("mdvalhs9","mdvalhs0","meanrnt80","firestoveheat80","noaircond80","nofullkitchen80",
-                "zerofullbath80",
-                "bedrms0_80occ","bedrms1_80occ","bedrms2_80occ","bedrms3_80occ","bedrms4_80occ",
-                "blt0_1yrs80occ","blt2_5yrs80occ","blt6_10yrs80occ","blt10_20yrs80occ",
-                "blt20_30yrs80occ","blt30_40yrs80occ","detach80occ","attach80occ","pop_den8",
-                "shrblk8","shrhsp8","child8","shrfor8","ffh8","smhse8","hsdrop8",
-                "no_hs_diploma8","ba_or_better8","unemprt8","povrat8","welfare8","avhhin8",
-                "tothsun8","ownocc8")
-pl <- list()
 
-for (i in c(1:6)) {
-  
-  pl[[i]] <- ggplot(all_covariates, aes_string(x = i,y=covariates[i], fill="npl2000")) + 
-  geom_boxplot(outlier.shape=NA)  + ylab(label = "value") + xlab(label = covariates[i]) + 
-  theme(axis.text.x=element_blank(),axis.text=element_text(size=8),
-        axis.title=element_text(size=8,face="bold"), 
-        legend.text=element_text(size=8),legend.title=element_text(size=8,face="bold"),
-        legend.position = c(0.8,.8)) + 
-  scale_fill_manual(values = c("cadetblue4", "darkgoldenrod3"),labels = c("no", "yes")) +
-  guides(colour = guide_legend(override.aes = list(size=10))) +
-    scale_y_continuous(limits = quantile(all_covariates[,covariates[i]], c(0.1, 0.9),na.rm=T))
-  
-}
-
-suppressWarnings(grid.arrange(grobs = pl))
-
-pl <- list()
-
-for (i in c(7:12)) {
-  
-  pl[[i-6]] <- ggplot(all_covariates, aes_string(x = i,y=covariates[i], fill="npl2000")) + 
-  geom_boxplot(outlier.shape=NA)  + ylab(label = "value") + xlab(label = covariates[i]) + 
-  theme(axis.text.x=element_blank(),axis.text=element_text(size=8),
-        axis.title=element_text(size=8,face="bold"), 
-        legend.text=element_text(size=8),legend.title=element_text(size=8,face="bold"),
-        legend.position = c(0.8,.8)) + 
-  scale_fill_manual(values = c("cadetblue4", "darkgoldenrod3"),labels = c("no", "yes")) +
-  guides(colour = guide_legend(override.aes = list(size=10))) +
-    scale_y_continuous(limits = quantile(all_covariates[,covariates[i]], c(0.1, 0.9)))
-  
-}
-
-suppressWarnings(grid.arrange(grobs = pl))
-
-pl <- list()
-
-for (i in c(13:18)) {
-  
-  pl[[i-12]] <- ggplot(all_covariates, aes_string(x = i,y=covariates[i], fill="npl2000")) + 
-  geom_boxplot(outlier.shape=NA)  + ylab(label = "value") + xlab(label = covariates[i]) + 
-  theme(axis.text.x=element_blank(),axis.text=element_text(size=8),
-        axis.title=element_text(size=8,face="bold"), 
-        legend.text=element_text(size=8),legend.title=element_text(size=8,face="bold"),
-        legend.position = c(0.8,.8)) + 
-  scale_fill_manual(values = c("cadetblue4", "darkgoldenrod3"),labels = c("no", "yes")) +
-  guides(colour = guide_legend(override.aes = list(size=10))) +
-    scale_y_continuous(limits = quantile(all_covariates[,covariates[i]], c(0.1, 0.9)))
-  
-}
-
-suppressWarnings(grid.arrange(grobs = pl))
-
-pl <- list()
-
-for (i in c(19:24)) {
-  
-  pl[[i-18]] <- ggplot(all_covariates, aes_string(x = i,y=covariates[i], fill="npl2000")) + 
-  geom_boxplot(outlier.shape=NA)  + ylab(label = "value") + xlab(label = covariates[i]) + 
-  theme(axis.text.x=element_blank(),axis.text=element_text(size=8),
-        axis.title=element_text(size=8,face="bold"), 
-        legend.text=element_text(size=8),legend.title=element_text(size=8,face="bold"),
-        legend.position = c(0.8,.8)) + 
-  scale_fill_manual(values = c("cadetblue4", "darkgoldenrod3"),labels = c("no", "yes")) +
-  guides(colour = guide_legend(override.aes = list(size=10))) +
-    scale_y_continuous(limits = quantile(all_covariates[,covariates[i]], c(0.1, 0.9)))
-  
-}
-
-suppressWarnings(grid.arrange(grobs = pl))
-
-pl <- list()
-
-for (i in c(25:30)) {
-  
-  pl[[i-24]] <- ggplot(all_covariates, aes_string(x = i,y=covariates[i], fill="npl2000")) + 
-  geom_boxplot(outlier.shape=NA)  + ylab(label = "value") + xlab(label = covariates[i]) + 
-  theme(axis.text.x=element_blank(),axis.text=element_text(size=8),
-        axis.title=element_text(size=8,face="bold"), 
-        legend.text=element_text(size=8),legend.title=element_text(size=8,face="bold"),
-        legend.position = c(0.8,.8)) + 
-  scale_fill_manual(values = c("cadetblue4", "darkgoldenrod3"),labels = c("no", "yes")) +
-  guides(colour = guide_legend(override.aes = list(size=10))) +
-    scale_y_continuous(limits = quantile(all_covariates[,covariates[i]], c(0.1, 0.9)))
-  
-}
-
-suppressWarnings(grid.arrange(grobs = pl))
-
-pl <- list()
-
-for (i in c(31:36)) {
-  
-  pl[[i-30]] <- ggplot(all_covariates, aes_string(x = i,y=covariates[i], fill="npl2000")) + 
-  geom_boxplot(outlier.shape=NA)  + ylab(label = "value") + xlab(label = covariates[i]) + 
-  theme(axis.text.x=element_blank(),axis.text=element_text(size=8),
-        axis.title=element_text(size=8,face="bold"), 
-        legend.text=element_text(size=8),legend.title=element_text(size=8,face="bold"),
-        legend.position = c(0.8,.8)) + 
-  scale_fill_manual(values = c("cadetblue4", "darkgoldenrod3"),labels = c("no", "yes")) +
-  guides(colour = guide_legend(override.aes = list(size=10))) +
-    scale_y_continuous(limits = quantile(all_covariates[,covariates[i]], c(0.1, 0.9)))
-  
-}
-
-suppressWarnings(grid.arrange(grobs = pl))
 
 ```
 
 ```{r controls site}
-site_covariates$above_285 <- ifelse(site_covariates$hrs_82>28.5,1,0)
 
-sitec.vars <- attributes(site_covariates)$var.labels
-
-range_285 <- site_covariates %>% group_by(above_285) %>% summarise_all(mean, na.rm=T) %>% t() %>% 
-  round(3) 
-range_285 <- cbind(c("HRS test result of 28.5 or greater before 1982",sitec.vars),range_285) %>% as.data.frame() %>% set_colnames(c("Variable","Control","Treated")) 
-
-kable(range_285, caption = "Mean Values of Covariates for tracts that had an HRS test in 1982 with a value greater than 28.5 (treated) and those with a value less than or equal to 28.5 (control)")
 
 ```
 
 ```{r controls site 2}
-site_covariates$above_btwn <- ifelse((site_covariates$hrs_82>28.5) &
-                                    (site_covariates$hrs_82<=40.5),1,
-                                    ifelse((site_covariates$hrs_82<=28.5) &
-                                             (site_covariates$hrs_82>=16.5),2,0))
 
-sitec.vars <- attributes(site_covariates)$var.labels
-
-range_285 <- site_covariates %>% group_by(above_btwn) %>% summarise_all(mean, na.rm=T) %>% t() %>% 
-  round(3) 
-
-range_285 <- cbind(c("HRS test result of 28.5 or greater before 1982",sitec.vars),range_285)%>%
-  as.data.frame() %>% set_colnames(c("Variable","Control","Treated","not included")) 
-
-kable(range_285, caption = "Mean Values of Covariates for tracts that had an HRS test in 1982 with a value greater than 28.5 (treated) and those with a value less than or equal to 28.5 (control)")
 
 ```
 
@@ -365,8 +229,10 @@ summary(reg2)
 ```
 
 ```{r calculate effect}
+##calculate treatment effect
 reg2$coefficients[[42]] / reg2_1st$coefficients[[42]]
 
+##calculate treatment effect with 1 regression
 mile_data_2sls$fitted <- reg2_1st$fitted.values
 covariates <- colnames(mile_data_2sls)
 remove <- c("mdvalhs9_nbr","mdvalhs9","mdvalhs0","meanhs8",
