@@ -26,16 +26,16 @@ Import Data
 
 ```{r}
 #setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS2b")
-#setwd("C:\\Users\\will-\\Desktop\\are213\\PS3")
+setwd("C:\\Users\\will-\\Desktop\\are213\\PS3")
 #setwd("C:\\Users\\Will\\Desktop\\are213\\PS3")
-setwd("C:\\Users\\Peter\\Documents\\Berkeley\\Courses\\ARE 213\\Problem Sets\\3")
+#setwd("C:\\Users\\Peter\\Documents\\Berkeley\\Courses\\ARE 213\\Problem Sets\\3")
 site_covariates <- read.dta("sitecovariates.dta")
 all_sites <- read.dta13("allsites.dta")
 all_covariates <- read.dta("allcovariates.dta")
 mile_data <- read.dta("2miledata.dta")
 ```
 
-# 1a - tract housing analysis
+#1a - tract housing analysis
 Outcome Variable: Median housing price in 2000
 Control Variables: NPL site in tract in 2000, mean housing price in 1980
 ```{r OLS 1}
@@ -91,7 +91,7 @@ The coefficient will be unbiased if the following assumptions are met:
 
 The fixed effect design, on the other hand, does not have to rely on the selection of observables assumption but rather that the the observables individual specific effects are not correlated with the error term and that the observeables are not correlated with the individual specific effects.
 
-# 1b - treatment vs. comparison
+#1b - treatment vs. comparison
 ```{r controls}
 group.ttest = function(x, group = as.factor(all_covariates$npl2000 == 1) ){
   return(
@@ -138,7 +138,7 @@ stargazer(comp_cov, title = "Table 1b3: Group by 28.5 for HRS 16.5 - 40.5", type
 We can see from these above comparisons that with the NPL 2000 treatment vs. control comparison the hosuing values in 2000 tend to be 8-10% higher in NPL tracts than those with non-NPLs, as expected.  Most of the covariates are significantly different between treatment vs. control, which is not ideal.  However, the differences are quite small. NPL tracts tend to be less population dense and had families making slightly lower incomes in 1980.  The 1982 HRS test result comparisons are less clear, with incomes and housing prices actually looking to be somewhat higher in tracts that had a high 1982 HRS score compared to those that didn't. Therefore, this suggests that perhaps something occurred to cause this change (hence the need for regression discontinuity).
 
 
-# 2a - HRS and regression discontinuity
+#2a - HRS and regression discontinuity
 
 Regression discontinuity design requires that treatment assignment is "as good as random" at the threshold for treatment. If this holds, then it guarantees that those who just barely received treatment are comparable to those who just barely did not receive treatment, as treatment status is effectively random. Treatment assignment at the threshold can be "as good as random" if there is randomness in the assignment variable and the agents considered individuals cannot perfectly manipulate their treatment status.
 
@@ -152,7 +152,7 @@ ii. This fact should alleviate concerns that there was gaming around the thresho
 iii. This fact could potentially muddy the treatment effect on the home's prices since scores may be off in a way that leads some homes that have really bad pollution not to be treated and homes that don't have that bad of pollution to be treated (when these homes are close to the threshold). The is a reason for fuzzy RD. The fact that the EPA emphasized that the HRS score is an imperfect scoring measure again means that there may be some slight element of randomness to the assignment and that the HRS score does not reflect detectable characteristics of the tracts other than causing them to be NPL listed or not. 
 
 
-# 2b - histogram
+#2b - histogram
 ```{r histogram}
 DCdensity(
     runvar      = mile_data$hrs_82,
@@ -166,10 +166,11 @@ abline(v = 28.5, col = "red", lty = "dashed", lwd = 2)
 As we can see in the histogram and in the local linear regression lines,
 there is a limited discontinuity around the threshold density which suggests we should not be concerned about bunching. Furthermore, the p-value is 0.62 which is further evidence of the insignificance of the discontinuity gap.
 
-# 3a - 2SLS
+#3a - 2SLS
 First Stage Equation:
 ${d}_i = \gamma_{0} + \gamma_{1}*{z}_{i} + \gamma_{2}*{z}_{i}*({X}_{i}-c) + {\gamma}_{3}({X}_{i} - c) + {u}_{i}$
 Where ${z}_{i}$ is the IV, in this case the binary 0/1 variable for whether a tract has an HRS 1982 score above 28.5 (1) or not (0), and ${d}_{i}$ is the variable we want to instrument for, in this case the treatment variable of the NPL 2000 listing.
+
 ```{r rd 2sls}
 mile_data$hrs_82_indicator <- ifelse(mile_data$hrs_82>=28.5,1,0)
 mile_data$running <- mile_data$hrs_82 - 28.5
@@ -187,7 +188,8 @@ mile_data_reg <- mile_data_reg[which(mile_data_reg$running >= -12 & mile_data_re
 reg2_1st <- lm(npl2000 ~ ., data = mile_data_reg)
 summary(reg2_1st)
 ```
-# 3b - graph results
+
+#3b - graph results
 ```{r graphing}
 plot(mile_data$hrs_82, mile_data$npl2000, main = "NPL 2000 listing vs. HRS 1982 score", 
      pch = 16, ylab = "NPL 2000 Listing (Yes/No)", xlab = "HRS 1982 Score")
@@ -196,14 +198,16 @@ abline(v = 28.5, lty = 'dashed', col = 2, lwd = 2)
 The graph shows a clear trend of houses with scores less than 28.5 in 1982 being classified as non-priority (NPL value of 0) in 2000, while houses with scores greater than 28.5 in 1982 are on the National Priorities List (NPL value of 1) for clean-up. There are also a few houses with scores lower than 28.5 that are on the NPL in 2000 showing that there is an increase in the number of hazardous waste sites that are legally obligated to be cleaned up since 1982, when their initial scores were assigned under the Superfund program. 
 This shows that there is a fuzzy discontinuity in NPL classification at an HRS score of 28.5 which can be used in a regression discontinuity design study to study the differential effects of hazardous waste material above a certain threshold on housing prices.
 The fact that there is a correlation suggests that the first assumption needed to use HRS 82 scores as an IV is valid because clearly the covariance between HRS 82 scores and NPL 2000 listing is not equal to zero, or ${Cov({z}_{i},{d}_{i}) \neq 0}$.
-# 3c - graph results #2
+
+#3c - graph results #2
 ```{r graphing 2}
 plot(mile_data$hrs_82, mile_data$lnmeanhs8_nbr, main = "1980 housing value vs. HRS 1982 score", 
      pch = 16, ylab = "1980 log housing value", xlab = "HRS 1982 Score")
 abline(v = 28.5, lty = 'dashed', col = 2, lwd = 2)
 ```
 There is no clear trend between the HRS score in 1982 and mean housing prices in 1980. This shows that ostensibly there may not be a relationship between the two variables prior to the Superfund program, which is desirable because we would not want a covariate to have a regression discontinuity.
-# 4 - More 2SLS
+
+#4 - More 2SLS
 reduced form Equation:
 ${y}_i = {\pi}_{0} + {\pi}_{1}{z}_{i} + {\pi}_{2}({x}_{i} - c){z}_{i} + {\pi}_{2}({x}_{i} - c) + {\varepsilon}_{i}$
 Where ${y}_{i}$ is the outcome variable, in this case the difference in log housing value between 1980 and 2000, and ${z}_{i}$ is the instrument, and ${x}_{i}$ are the rest of the exogenous covariates.
@@ -244,5 +248,6 @@ summary(reg_2sls)
 ```
 When running the two regressions separately, we calculate a treatment effect of 0.09. While the number is slightly positive, the results are insignificant. This implies that housing prices in 2000 are insignificantly affected by the NPL 2000 status.
 When running the 2sls regression completely, the point estimate was very close, at 0.1, but also insignificant.
-# 5 - Summary
+
+#5 - Summary
 We find that a simple OLS regression of housing prices on NPL 2000 status reveals a significant positive relationship when none of the control variables are included in the model. The relationship becomes less significant on adding the housing and demographic characteristics to the equation. We try to resolve ommitted variable bias using an IV model as suggested, using the HRS score in 1982 as an instrument for NPL 2000 status. This reveals an insignificant relationship between pollution levels indicated by inclusion on the NPL 2000 list and housing prices. The goal of the paper is to test the Market Willingness to Pay (WTP) for hazardous waste site cleanup using housing prices, and the results of the IV approach reveal that home-owners do not yet value the property on the basis of pollution levels or hazardous waste cleanup status.
