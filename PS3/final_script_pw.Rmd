@@ -1,0 +1,248 @@
+---
+title: "ARE 213 Problem Set 3"
+author: "Nick Depsky, Will Gorman, Peter Worley"
+date: "December 3, 2018"
+output:
+  pdf_document: default
+---
+
+```{r, include = F}
+rm(list = ls())
+library(pacman)
+p_load("dplyr","magrittr","knitr","ggplot2", "stargazer","readstata13","sandwich","lfe", "foreign", "gridExtra","rdd")
+theme_plot <- theme(
+  legend.position = "right",
+  panel.background = element_rect(fill = NA),
+  panel.border = element_rect(fill = NA, color = "grey75"),
+  axis.ticks = element_line(color = "grey85"),
+  panel.grid.major = element_line(color = "grey95", size = 0.2),
+  panel.grid.minor = element_line(color = "grey95", size = 0.2),
+  legend.key = element_blank(),
+  legend.title = element_blank(),
+  legend.spacing.x = unit(0.3, "cm"))
+```
+
+Import Data
+
+```{r}
+#setwd("~/Dropbox/Berkeley_tings/Fall 2018/ARE213/Problem Sets/SharedFiles/are213/PS2b")
+#setwd("C:\\Users\\will-\\Desktop\\are213\\PS3")
+#setwd("C:\\Users\\Will\\Desktop\\are213\\PS3")
+setwd("C:\\Users\\Peter\\Documents\\Berkeley\\Courses\\ARE 213\\Problem Sets\\3")
+site_covariates <- read.dta("sitecovariates.dta")
+all_sites <- read.dta13("allsites.dta")
+all_covariates <- read.dta("allcovariates.dta")
+mile_data <- read.dta("2miledata.dta")
+```
+
+# 1a - tract housing analysis
+Outcome Variable: Median housing price in 2000
+Control Variables: NPL site in tract in 2000, mean housing price in 1980
+```{r OLS 1}
+ols1 <- felm(lnmdvalhs0 ~ npl2000 + lnmeanhs8, data=all_sites) 
+summary(ols1, robust=T)
+```
+
+Outcome Variable: Median housing price in 2000
+Control Variables: NPL site in tract in 2000, mean housing price in 1980 and various housing characteristics
+```{r OLS 2}
+ols2 <- felm(lnmdvalhs0 ~ npl2000 + lnmeanhs8 + firestoveheat80 + noaircond80 +
+               nofullkitchen80 + zerofullbath80 + bedrms0_80occ + bedrms1_80occ +
+               bedrms2_80occ + bedrms3_80occ +bedrms4_80occ  + blt0_1yrs80occ +
+               blt2_5yrs80occ +blt6_10yrs80occ +blt10_20yrs80occ +blt20_30yrs80occ +
+               blt30_40yrs80occ +detach80occ+attach80occ, data=all_sites)
+summary(ols2, robust=T)
+```
+
+Outcome Variable: Median housing price in 2000
+Control Variables: NPL site in tract in 2000, mean housing price in 1980 and various housing and demographic characteristics
+```{r OLS 3}
+ols3 <- felm(lnmdvalhs0 ~ npl2000 + lnmeanhs8 + firestoveheat80 + noaircond80 +
+               nofullkitchen80 + zerofullbath80 + bedrms0_80occ + bedrms1_80occ + 
+               bedrms2_80occ + bedrms3_80occ +bedrms4_80occ  + blt0_1yrs80occ +
+               blt2_5yrs80occ +blt6_10yrs80occ +blt10_20yrs80occ +blt20_30yrs80occ +
+               blt30_40yrs80occ +detach80occ+attach80occ+pop_den8+shrblk8+
+               shrhsp8+child8+old8+shrfor8+ffh8+smhse8+hsdrop8+no_hs_diploma8+
+               ba_or_better8+unemprt8+povrat8+welfare8+avhhin8+tothsun8+ownocc8, data=all_sites) 
+summary(ols3, robust=T)
+```
+Outcome Variable: Median housing price in 2000
+Control Variables: NPL site in tract in 2000, mean housing price in 1980 and various housing and demographic characteristics and state fixed effects (exlcuded variables that returned errors in fixed effects treatment bedrms5_80occ, blt40_yrs80occ, percent mobile home single family housing 1980)
+```{r OLS 4}
+ols4 <- felm(lnmdvalhs0 ~ npl2000 + lnmeanhs8 + firestoveheat80 + noaircond80 +
+               nofullkitchen80 + zerofullbath80 + bedrms0_80occ + bedrms1_80occ + 
+               bedrms2_80occ + bedrms3_80occ +bedrms4_80occ  + blt0_1yrs80occ +
+               blt2_5yrs80occ +blt6_10yrs80occ +blt10_20yrs80occ +blt20_30yrs80occ +
+               blt30_40yrs80occ +detach80occ+attach80occ+pop_den8+shrblk8+
+               shrhsp8+child8+old8+shrfor8+ffh8+smhse8+hsdrop8+no_hs_diploma8+
+               ba_or_better8+unemprt8+povrat8+welfare8+avhhin8+tothsun8+
+               ownocc8 | statefips, data=all_sites) 
+summary(ols4, robust=T)
+```
+
+The coefficient for NPL status is significant and positive in all of the regressions. Since all of the coefficients for NPL are positive, it suggests this designation has an unambiguously positive correlation with housing value. The magnitude of the coefficient on NPL term doesn't change notably as the additional demographic and economic variables are added .
+
+In the first three regressions, we have to make the assumptions associated with a selection on observables research design. 
+
+The coefficient will be unbiased if the following assumptions are met:
+- residuals are mean zero
+- residuals are homoskedastic with finite variance
+- residuals are uncorrelated with NPL2000
+
+The fixed effect design, on the other hand, does not have to rely on the selection of observables assumption but rather that the the observables individual specific effects are not correlated with the error term and that the observeables are not correlated with the individual specific effects.
+
+# 1b - treatment vs. comparison
+```{r controls}
+group.ttest = function(x, group = as.factor(all_covariates$npl2000 == 1) ){
+  return(
+    unlist(
+      t.test( x ~ group)[c("estimate", "p.value")]
+    )
+  )
+}
+comp_cov = t(sapply(all_covariates[,c(1,3:ncol(all_covariates))], group.ttest))
+colnames(comp_cov) <- c("non-npl2000","npl2000","p-value")
+rownames(comp_cov) <- names(all_covariates[c(1,3:ncol(all_covariates))])
+stargazer(comp_cov, title = "Table 1b1: difference in covariates", type = "text")
+```
+
+```{r controls site}
+group.ttest = function(x, group = as.factor(site_covariates$hrs_82 > 28.5) ){
+  return(
+    unlist(
+      t.test( x ~ group)[c("estimate", "p.value")]
+    )
+  )
+}
+comp_cov = t(sapply(site_covariates[,c(1,3:58)], group.ttest))
+colnames(comp_cov) <- c("Less than 28.5","Greater than 28.5","p-value")
+rownames(comp_cov) <- names(site_covariates[c(1,3:58)])
+stargazer(comp_cov, title = "Table 1b2: Group by 28.5 - Difference in covariates", type = "text")
+```
+
+```{r controls site 2}
+site_covariates_2 <- subset(site_covariates,(hrs_82 >= 16.5 & hrs_82 <= 40.5)) 
+group.ttest = function(x, group = as.factor(site_covariates_2$hrs_82 > 28.5) ){
+  return(
+    unlist(
+      t.test( x ~ group)[c("estimate", "p.value")]
+    )
+  )
+}
+comp_cov = t(sapply(site_covariates_2[,c(1,3:58)], group.ttest))
+colnames(comp_cov) <- c("16.5 to 28.5","28.5 to 40.5","p-value")
+rownames(comp_cov) <- names(site_covariates_2[c(1,3:58)])
+stargazer(comp_cov, title = "Table 1b3: Group by 28.5 for HRS 16.5 - 40.5", type = "text")
+```
+
+We can see from these above comparisons that with the NPL 2000 treatment vs. control comparison the hosuing values in 2000 tend to be 8-10% higher in NPL tracts than those with non-NPLs, as expected.  Most of the covariates are significantly different between treatment vs. control, which is not ideal.  However, the differences are quite small. NPL tracts tend to be less population dense and had families making slightly lower incomes in 1980.  The 1982 HRS test result comparisons are less clear, with incomes and housing prices actually looking to be somewhat higher in tracts that had a high 1982 HRS score compared to those that didn't. Therefore, this suggests that perhaps something occurred to cause this change (hence the need for regression discontinuity).
+
+
+# 2a - HRS and regression discontinuity
+
+Regression discontinuity design requires that treatment assignment is "as good as random" at the threshold for treatment. If this holds, then it guarantees that those who just barely received treatment are comparable to those who just barely did not receive treatment, as treatment status is effectively random. Treatment assignment at the threshold can be "as good as random" if there is randomness in the assignment variable and the agents considered individuals cannot perfectly manipulate their treatment status.
+
+Regarding the facts: 
+
+i. This fact limits the randomness of the of the assignment variable since
+the EPA is selecting the number of sites that it can manage to treat. This could suggest that the treated units are not balanced in some way.  EPA might have selected the few sites that had the largest potential for benefit. On the other hand, if the threshold was determined for some reason like all HRS scores above 28.5 produce visible or noxious signs of pollution, then there may be other reasons that housing prices might respond to this HRS value other than due to the NPL listing.
+
+ii. This fact should alleviate concerns that there was gaming around the threshold. The fact that none of the officials involved in site identification, testing and HRS scoring knew about the cutoff threshold at the time means that they were not subject to any bias to score sites near the threshold one way or the other. One can imagine a scenario in which someone may want to score a site with an HRS score of say 29 as being 28.5 so that it might be listed if they have a vested interest in that community being aware of an NPL site. Conversely it is reasonable to think that one might not want to subject a community to an NPL listing if it has an HRS score just below the cutoff so as to prevent housing prices from dropping in response to NPL listing. We could also check this issue by evaluating bunching on our own. 
+
+iii. This fact could potentially muddy the treatment effect on the home's prices since scores may be off in a way that leads some homes that have really bad pollution not to be treated and homes that don't have that bad of pollution to be treated (when these homes are close to the threshold). The is a reason for fuzzy RD. The fact that the EPA emphasized that the HRS score is an imperfect scoring measure again means that there may be some slight element of randomness to the assignment and that the HRS score does not reflect detectable characteristics of the tracts other than causing them to be NPL listed or not. 
+
+
+# 2b - histogram
+```{r histogram}
+DCdensity(
+    runvar      = mile_data$hrs_82,
+    cutpoint    = 28.5,
+    plot        = TRUE,
+    ext.out     = TRUE)
+title(xlab = 'Assignment Variable', ylab = 'Density')
+abline(v = 28.5, col = "red", lty = "dashed", lwd = 2)
+```
+
+As we can see in the histogram and in the local linear regression lines,
+there is a limited discontinuity around the threshold density which suggests we should not be concerned about bunching. Furthermore, the p-value is 0.62 which is further evidence of the insignificance of the discontinuity gap.
+
+# 3a - 2SLS
+First Stage Equation:
+${d}_i = \gamma_{0} + \gamma_{1}*{z}_{i} + \gamma_{2}*{z}_{i}*({X}_{i}-c) + {\gamma}_{3}({X}_{i} - c) + {u}_{i}$
+Where ${z}_{i}$ is the IV, in this case the binary 0/1 variable for whether a tract has an HRS 1982 score above 28.5 (1) or not (0), and ${d}_{i}$ is the variable we want to instrument for, in this case the treatment variable of the NPL 2000 listing.
+```{r rd 2sls}
+mile_data$hrs_82_indicator <- ifelse(mile_data$hrs_82>=28.5,1,0)
+mile_data$running <- mile_data$hrs_82 - 28.5
+covariates <- colnames(mile_data)
+remove <- c("mdvalhs9_nbr","mdvalhs9","mdvalhs0","meanhs8",
+            "lnmdvalhs0_nbr","fips","statefips","npl1990","hrs_82", "blt40_yrs80occ_nbr")
+covariates <- covariates[! covariates %in% remove]
+mile_data_reg <- mile_data[,covariates]
+mile_data_reg$interaction <- mile_data_reg$hrs_82_indicator * mile_data_reg$running
+reg1 <- lm(npl2000 ~ ., data = mile_data_reg)
+summary(reg1)
+```
+```{r rd 2sls 2nd}
+mile_data_reg <- mile_data_reg[which(mile_data_reg$running >= -12 & mile_data_reg$running <= 12),]
+reg2_1st <- lm(npl2000 ~ ., data = mile_data_reg)
+summary(reg2_1st)
+```
+# 3b - graph results
+```{r graphing}
+plot(mile_data$hrs_82, mile_data$npl2000, main = "NPL 2000 listing vs. HRS 1982 score", 
+     pch = 16, ylab = "NPL 2000 Listing (Yes/No)", xlab = "HRS 1982 Score")
+abline(v = 28.5, lty = 'dashed', col = 2, lwd = 2)
+```
+The graph shows a clear trend of houses with scores less than 28.5 in 1982 being classified as non-priority (NPL value of 0) in 2000, while houses with scores greater than 28.5 in 1982 are on the National Priorities List (NPL value of 1) for clean-up. There are also a few houses with scores lower than 28.5 that are on the NPL in 2000 showing that there is an increase in the number of hazardous waste sites that are legally obligated to be cleaned up since 1982, when their initial scores were assigned under the Superfund program. 
+This shows that there is a fuzzy discontinuity in NPL classification at an HRS score of 28.5 which can be used in a regression discontinuity design study to study the differential effects of hazardous waste material above a certain threshold on housing prices.
+The fact that there is a correlation suggests that the first assumption needed to use HRS 82 scores as an IV is valid because clearly the covariance between HRS 82 scores and NPL 2000 listing is not equal to zero, or ${Cov({z}_{i},{d}_{i}) \neq 0}$.
+# 3c - graph results #2
+```{r graphing 2}
+plot(mile_data$hrs_82, mile_data$lnmeanhs8_nbr, main = "1980 housing value vs. HRS 1982 score", 
+     pch = 16, ylab = "1980 log housing value", xlab = "HRS 1982 Score")
+abline(v = 28.5, lty = 'dashed', col = 2, lwd = 2)
+```
+There is no clear trend between the HRS score in 1982 and mean housing prices in 1980. This shows that ostensibly there may not be a relationship between the two variables prior to the Superfund program, which is desirable because we would not want a covariate to have a regression discontinuity.
+# 4 - More 2SLS
+reduced form Equation:
+${y}_i = {\pi}_{0} + {\pi}_{1}{z}_{i} + {\pi}_{2}({x}_{i} - c){z}_{i} + {\pi}_{2}({x}_{i} - c) + {\varepsilon}_{i}$
+Where ${y}_{i}$ is the outcome variable, in this case the difference in log housing value between 1980 and 2000, and ${z}_{i}$ is the instrument, and ${x}_{i}$ are the rest of the exogenous covariates.
+In the second stage, we regress the outcome variable on predicted values from the first stage (x_star) and all the exogenous variables in the model. 
+The 2 standard assumptions for a valid IV are as follows:
+1. It is uncorrelated with the disturbance - Cov(instrument, error ) = 0
+2. In the linear projection of the endogenous variable on all exogenous variables and the instrument, the coefficient on the instrument is not equal to 0. This implies that the only way the instrument affects the outcome variable is through the endogenous variable. 
+The third condition is a bit redundant, but we will state it anyway. The instrument is not one of the other variables in the original estimation equation.
+```{r more 2sls}
+covariates <- colnames(mile_data)
+remove <- c("mdvalhs9_nbr","mdvalhs9","mdvalhs0","meanhs8",
+            "fips","statefips","npl1990","hrs_82","npl2000", "blt40_yrs80occ_nbr")
+covariates <- covariates[! covariates %in% remove]
+mile_data_2sls <- mile_data[,covariates]
+mile_data_2sls$interaction <- mile_data_2sls$hrs_82_indicator * mile_data_2sls$running
+reg1 <- lm(lnmdvalhs0_nbr ~ ., data = mile_data_2sls)
+summary(reg1)
+```
+```{r more 2sls 2nd}
+mile_data_2sls <- mile_data_2sls[which(mile_data_2sls$running >= -12 & mile_data_2sls$running <= 12),]
+reg2 <- lm(lnmdvalhs0_nbr ~ ., data = mile_data_2sls)
+summary(reg2)
+```
+```{r calculate effect}
+##calculate treatment effect
+reg2$coefficients[[42]] / reg2_1st$coefficients[[42]]
+##calculate treatment effect with 1 regression
+mile_data_2sls$fitted <- reg2_1st$fitted.values
+covariates <- colnames(mile_data_2sls)
+remove <- c("mdvalhs9_nbr","mdvalhs9","mdvalhs0","meanhs8",
+            "fips","statefips","npl1990","hrs_82","npl2000", "blt40_yrs80occ_nbr",
+            "hrs_82_indicator")
+covariates_2sls <- covariates[! covariates %in% remove]
+mile_data_2sls <- mile_data_2sls[,covariates_2sls]
+mile_data_2sls$interaction <- mile_data_2sls$fitted * mile_data_2sls$running
+reg_2sls <- lm(lnmdvalhs0_nbr ~ ., data = mile_data_2sls)
+summary(reg_2sls)
+```
+When running the two regressions separately, we calculate a treatment effect of 0.09. While the number is slightly positive, the results are insignificant. This implies that housing prices in 2000 are insignificantly affected by the NPL 2000 status.
+When running the 2sls regression completely, the point estimate was very close, at 0.1, but also insignificant.
+# 5 - Summary
+We find that a simple OLS regression of housing prices on NPL 2000 status reveals a significant positive relationship when none of the control variables are included in the model. The relationship becomes less significant on adding the housing and demographic characteristics to the equation. We try to resolve ommitted variable bias using an IV model as suggested, using the HRS score in 1982 as an instrument for NPL 2000 status. This reveals an insignificant relationship between pollution levels indicated by inclusion on the NPL 2000 list and housing prices. The goal of the paper is to test the Market Willingness to Pay (WTP) for hazardous waste site cleanup using housing prices, and the results of the IV approach reveal that home-owners do not yet value the property on the basis of pollution levels or hazardous waste cleanup status.
